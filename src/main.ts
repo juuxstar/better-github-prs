@@ -16,6 +16,7 @@ import PrItem from './components/PrItem.vue';
 import RateLimitBanner from './components/RateLimitBanner.vue';
 import PrOverviewTab from './views/PrOverviewTab.vue';
 import PrFilesTab from './views/PrFilesTab.vue';
+import CommentPopover from './components/CommentPopover.vue';
 
 const app = createApp(AppShell);
 
@@ -34,5 +35,6 @@ app.component('pr-item', PrItem);
 app.component('rate-limit-banner', RateLimitBanner);
 app.component('pr-overview-tab', PrOverviewTab);
 app.component('pr-files-tab', PrFilesTab);
+app.component('comment-popover', CommentPopover);
 
 app.mount('#app');

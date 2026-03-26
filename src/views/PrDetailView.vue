@@ -44,6 +44,20 @@
           </span>
         </div>
         <div class="pr-detail-header-right">
+          <template v-if="pendingComments.length">
+            <button class="pr-review-discard-btn" @click="discardAllPending" title="Discard all pending comments">&times;</button>
+            <button
+              class="pr-review-submit-btn"
+              :disabled="submittingReview"
+              @click="submitReview"
+            >
+              <span v-if="submittingReview" class="async-loader"></span>
+              Submit Review ({{ pendingComments.length }})
+            </button>
+          </template>
+          <select class="pr-detail-tab-size" :value="hljsTheme" @change="hljsTheme = ($event.target as HTMLSelectElement).value">
+            <option v-for="t in hljsThemes" :key="t.id" :value="t.id">{{ t.label }}</option>
+          </select>
           <select class="pr-detail-tab-size" :value="tabSize" @change="tabSize = +($event.target as HTMLSelectElement).value">
             <option :value="2">2 spaces</option>
             <option :value="4">4 spaces</option>
@@ -77,8 +91,15 @@
         :tab-size="tabSize"
         :viewed-files="viewedFiles"
         :pr-node-id="prNodeId"
+        :review-comments="reviewComments"
+        :pending-comments="pendingComments"
+        :commit-id="pr.head.sha"
         @update:file-index="onFileIndexChange"
         @update:viewed="onViewedChange"
+        @add-pending="onAddPending"
+        @remove-pending="onRemovePending"
+        @edit-pending="onEditPending"
+        @comments-updated="onCommentsUpdated"
       />
     </template>
   </div>
@@ -87,9 +108,10 @@
 <script lang="ts">
 import { Component, Prop, Vue, Watch } from 'vue-facing-decorator';
 import GitHubClient from '@/lib/githubClient';
-import type { CheckRunDetail, RepoLabel, PRFile } from '@/lib/githubClient';
+import type { CheckRunDetail, RepoLabel, PRFile, ReviewComment, PendingComment } from '@/lib/githubClient';
 import { getStoredToken } from '@/services/auth';
 import { timeAgo } from '@/lib/utils';
+import { HLJS_THEMES, loadHljsTheme } from '@/lib/hljsTheme';
 
 @Component({ emits: ['update:fileIndex'] })
 export default class PrDetailView extends Vue {
@@ -108,12 +130,23 @@ export default class PrDetailView extends Vue {
   error = '';
   activeTab: 'overview' | 'files' = 'overview';
   tabSize = parseInt(localStorage.getItem('diffTabSize') || '4', 10);
+  hljsTheme = localStorage.getItem('hljsTheme') || 'github-dark';
+  hljsThemes = HLJS_THEMES;
   viewedFiles: Record<string, string> = {};
   prNodeId = '';
+  reviewComments: ReviewComment[] = [];
+  pendingComments: PendingComment[] = [];
+  submittingReview = false;
 
   @Watch('tabSize')
   onTabSizeChanged(val: number) {
     localStorage.setItem('diffTabSize', String(val));
+  }
+
+  @Watch('hljsTheme')
+  onHljsThemeChanged(val: string) {
+    localStorage.setItem('hljsTheme', val);
+    loadHljsTheme(val);
   }
 
   readonly timeAgo = timeAgo;
@@ -167,6 +200,7 @@ export default class PrDetailView extends Vue {
     }
     const token = getStoredToken();
     if (token) GitHubClient.setToken(token);
+    loadHljsTheme(this.hljsTheme);
     this.loadAll();
   }
 
@@ -196,10 +230,9 @@ export default class PrDetailView extends Vue {
     this.checksLoading = true;
     try {
       this.checks = await GitHubClient.fetchDetailedChecks(this.owner, this.repo, this.prNumber);
-      const hasPending = this.checks.some(c => {
-        const con = c.conclusion;
-        const passed = con === 'success' || con === 'neutral' || con === 'skipped';
-        const failed = con === 'failure' || con === 'timed_out' || con === 'cancelled' || con === 'error';
+      const hasPending = this.checks.some(check => {
+        const passed = [ 'success', 'neutral', 'skipped' ].includes(check.conclusion ?? '');
+        const failed = [ 'failure', 'timed_out', 'cancelled', 'error' ].includes(check.conclusion ?? '');
         return !passed && !failed;
       });
       if (hasPending) this.startChecksPolling();
@@ -224,10 +257,19 @@ export default class PrDetailView extends Vue {
     try {
       this.files = await GitHubClient.fetchPRFiles(this.owner, this.repo, this.prNumber);
       this.loadViewedState();
+      this.loadReviewComments();
     } catch {
       this.files = [];
     } finally {
       this.filesLoading = false;
+    }
+  }
+
+  async loadReviewComments() {
+    try {
+      this.reviewComments = await GitHubClient.fetchPRReviewComments(this.owner, this.repo, this.prNumber);
+    } catch {
+      this.reviewComments = [];
     }
   }
 
@@ -305,6 +347,40 @@ export default class PrDetailView extends Vue {
     } catch (e: any) {
       console.error('Failed to remove label:', e);
     }
+  }
+
+  onAddPending(comment: PendingComment) {
+    this.pendingComments = [...this.pendingComments, comment];
+  }
+
+  onRemovePending(id: string) {
+    this.pendingComments = this.pendingComments.filter(c => c.id !== id);
+  }
+
+  onEditPending(updated: PendingComment) {
+    this.pendingComments = this.pendingComments.map(c => c.id === updated.id ? updated : c);
+  }
+
+  onCommentsUpdated() {
+    this.loadReviewComments();
+  }
+
+  async submitReview() {
+    if (!this.pendingComments.length || this.submittingReview) return;
+    this.submittingReview = true;
+    try {
+      await GitHubClient.submitReview(this.owner, this.repo, this.prNumber, this.pr.head.sha, this.pendingComments);
+      this.pendingComments = [];
+      await this.loadReviewComments();
+    } catch (e: any) {
+      console.error('Failed to submit review:', e);
+    } finally {
+      this.submittingReview = false;
+    }
+  }
+
+  discardAllPending() {
+    this.pendingComments = [];
   }
 }
 </script>
@@ -539,6 +615,47 @@ export default class PrDetailView extends Vue {
     outline: none;
     border-color: var(--accent-blue);
     box-shadow: 0 0 0 1px var(--accent-blue);
+  }
+}
+
+.pr-review-submit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 14px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--btn-primary-bg);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--transition);
+
+  &:hover:not(:disabled) { background: var(--btn-primary-hover); }
+  &:disabled { opacity: 0.6; cursor: default; }
+}
+
+.pr-review-discard-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-tertiary);
+  font-size: 16px;
+  cursor: pointer;
+  transition: all var(--transition);
+
+  &:hover {
+    color: var(--accent-red);
+    border-color: var(--accent-red);
+    background: rgba(248, 81, 73, 0.1);
   }
 }
 </style>

@@ -346,36 +346,39 @@ export default class PrBoard extends Vue {
   display: flex;
   flex-direction: column;
   min-height: 200px;
+}
 
-  &-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 12px 16px;
-    border-bottom: 1px solid var(--border);
-    position: sticky;
-    top: 0;
-    background: var(--bg-secondary);
-    border-radius: var(--radius-md) var(--radius-md) 0 0;
-    z-index: 1;
-  }
+.pr-column-header {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  z-index: 1;
+}
 
-  &-split {
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-    padding: 0;
-    background: none;
-    border: none;
-    min-height: 0;
-  }
+.pr-column-split {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+  background: none;
+  border: none;
+  min-height: 0;
+}
 
-  &-title {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--text-primary);
-    margin: 0;
-  }
+.pr-column-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 0;
 }
 
 .pr-subcolumn {

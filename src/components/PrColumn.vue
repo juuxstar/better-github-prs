@@ -149,11 +149,10 @@ export default class PrColumn extends Vue {
 
 .pr-count {
   background: var(--bg-tertiary);
-  color: var(--text-secondary);
-  font-size: 12px;
+  color: var(--text-tertiary);
+  font-size: 11px;
   font-weight: 600;
-  padding: 2px 8px;
+  padding: 1px 6px;
   border-radius: 10px;
-  margin-left: 6px;
 }
 </style>

@@ -558,6 +558,80 @@ class GitHubAPI {
     if (labels.length > 0) await this.addLabel(repo, pr.number, labels[0]);
     return pr;
   }
+
+  // ─── Review Comments ───────────────────────────────────
+
+  async fetchPRReviewComments(owner: string, repo: string, number: number): Promise<ReviewComment[]> {
+    const raw = await this.fetchAllPages(`/repos/${owner}/${repo}/pulls/${number}/comments`);
+    return raw.map((c: any) => ({
+      id: c.id,
+      node_id: c.node_id,
+      path: c.path,
+      line: c.line ?? c.original_line ?? null,
+      side: c.side || 'RIGHT',
+      original_line: c.original_line ?? null,
+      body: c.body,
+      user: { login: c.user.login, avatar_url: c.user.avatar_url },
+      created_at: c.created_at,
+      updated_at: c.updated_at,
+      in_reply_to_id: c.in_reply_to_id ?? undefined,
+      html_url: c.html_url,
+    }));
+  }
+
+  async submitReview(
+    owner: string,
+    repo: string,
+    number: number,
+    commitId: string,
+    pending: PendingComment[],
+    event = 'COMMENT',
+  ): Promise<any> {
+    const comments = pending.map(c => ({
+      path: c.path,
+      line: c.line,
+      side: c.side,
+      body: formatCommentBody(c.body, c.commentType),
+    }));
+    return this.apiFetch(`/repos/${owner}/${repo}/pulls/${number}/reviews`, {
+      method: 'POST',
+      body: JSON.stringify({ commit_id: commitId, event, comments }),
+    });
+  }
+
+  async replyToReviewComment(owner: string, repo: string, number: number, commentId: number, body: string): Promise<ReviewComment> {
+    const c = await this.apiFetch(`/repos/${owner}/${repo}/pulls/${number}/comments/${commentId}/replies`, {
+      method: 'POST',
+      body: JSON.stringify({ body }),
+    });
+    return {
+      id: c.id,
+      node_id: c.node_id,
+      path: c.path,
+      line: c.line ?? c.original_line ?? null,
+      side: c.side || 'RIGHT',
+      original_line: c.original_line ?? null,
+      body: c.body,
+      user: { login: c.user.login, avatar_url: c.user.avatar_url },
+      created_at: c.created_at,
+      updated_at: c.updated_at,
+      in_reply_to_id: c.in_reply_to_id ?? undefined,
+      html_url: c.html_url,
+    };
+  }
+
+  async applySuggestion(commentNodeId: string, commitMessage?: string): Promise<void> {
+    const MUTATION = `
+      mutation($suggestionId: ID!, $message: String!) {
+        applySuggestedChanges(input: { suggestionIds: [$suggestionId], message: $message }) {
+          clientMutationId
+        }
+      }`;
+    await this.graphql(MUTATION, {
+      suggestionId: commentNodeId,
+      message: commitMessage || 'Apply suggestion from review',
+    });
+  }
 }
 
 export const GitHubClient = new GitHubAPI();
@@ -631,4 +705,77 @@ export interface PRFile {
   changes: number;
   patch?: string;
   previous_filename?: string;
+}
+
+export type CommentType = 'suggestion' | 'change-required' | 'question';
+
+export interface ReviewComment {
+  id: number;
+  node_id: string;
+  path: string;
+  line: number | null;
+  side: 'LEFT' | 'RIGHT';
+  original_line: number | null;
+  body: string;
+  user: { login: string; avatar_url: string };
+  created_at: string;
+  updated_at: string;
+  in_reply_to_id?: number;
+  html_url: string;
+}
+
+export interface PendingComment {
+  id: string;
+  path: string;
+  line: number;
+  side: 'LEFT' | 'RIGHT';
+  body: string;
+  commentType: CommentType;
+  lineContent: string;
+}
+
+const COMMENT_TYPE_PREFIXES: Record<CommentType, string> = {
+  'suggestion': '\u{1F4A1} **Suggestion:**',
+  'change-required': '\u{26A0}\u{FE0F} **Change Required:**',
+  'question': '\u{2753} **Question:**',
+};
+
+export function formatCommentBody(body: string, commentType: CommentType): string {
+  const prefix = COMMENT_TYPE_PREFIXES[commentType];
+  return `${prefix} ${body}\n<!-- review-type:${commentType} -->`;
+}
+
+export function parseCommentType(body: string): CommentType {
+  const metaMatch = body.match(/<!-- review-type:(suggestion|change-required|question) -->/);
+  if (metaMatch) return metaMatch[1] as CommentType;
+  if (body.startsWith('\u{1F4A1}')) return 'suggestion';
+  if (body.startsWith('\u{26A0}')) return 'change-required';
+  if (body.startsWith('\u{2753}')) return 'question';
+  return 'suggestion';
+}
+
+export function stripCommentTypePrefix(body: string): string {
+  return body
+    .replace(/^(?:\u{1F4A1}|\u{26A0}\u{FE0F}|\u{2753})\s*\*\*(?:Suggestion|Change Required|Question):\*\*\s*/u, '')
+    .replace(/\n?<!-- review-type:(?:suggestion|change-required|question) -->/, '')
+    .trim();
+}
+
+type SuggestionSegment = { type: 'text'; content: string } | { type: 'suggestion'; code: string };
+
+export function parseSuggestionBlocks(body: string): SuggestionSegment[] {
+  const segments: SuggestionSegment[] = [];
+  const regex = /```suggestion\n([\s\S]*?)```/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = regex.exec(body)) !== null) {
+    if (match.index > lastIndex) {
+      segments.push({ type: 'text', content: body.slice(lastIndex, match.index).trim() });
+    }
+    segments.push({ type: 'suggestion', code: match[1].replace(/\n$/, '') });
+    lastIndex = match.index + match[0].length;
+  }
+  const trailing = body.slice(lastIndex).trim();
+  if (trailing) segments.push({ type: 'text', content: trailing });
+  return segments;
 }

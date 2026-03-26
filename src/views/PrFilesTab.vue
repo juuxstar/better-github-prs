@@ -8,22 +8,31 @@
     <template v-else-if="files.length">
       <nav class="pr-files-nav-bar">
         <button
-          class="pr-files-nav-btn"
+          class="pr-files-nav-btn pr-files-nav-btn-skip has-tooltip"
+          :disabled="prevUnviewedIndex === -1"
+          @click="currentIndex = prevUnviewedIndex"
+          data-tooltip="Skip to previous unviewed file &#10;Shortcut: ←"
+        >
+          &laquo;
+        </button>
+        <button
+          class="pr-files-nav-btn has-tooltip"
           :disabled="currentIndex <= 0"
           @click="currentIndex--"
+          data-tooltip="Go to previous file"
         >
           &lt;
         </button>
         <button
-          class="pr-files-nav-viewed-btn"
+          class="pr-files-nav-viewed-btn has-tooltip"
           :class="{ checked: isCurrentFileViewed }"
           @click="toggleViewed"
-          title="Toggle viewed (Space)"
+          data-tooltip="Mark file as viewed/unviewed &#10;Shortcut: Space"
         >
           ✓
         </button>
         <div class="pr-files-dropdown" ref="filesDropdown">
-          <button class="pr-files-dropdown-trigger" @click="dropdownOpen = !dropdownOpen">
+          <button class="pr-files-dropdown-trigger has-tooltip" data-tooltip="Click to browse all changed files" @click="dropdownOpen = !dropdownOpen">
             <span :class="['file-status-icon', 'file-status-' + currentFile.status]">{{ fileStatusSymbol(currentFile.status) }}</span>
             <span class="pr-files-dropdown-filename">{{ currentFile.filename }}</span>
           </button>
@@ -41,11 +50,20 @@
           </ul>
         </div>
         <button
-          class="pr-files-nav-btn"
+          class="pr-files-nav-btn has-tooltip"
           :disabled="currentIndex >= files.length - 1"
           @click="currentIndex++"
+          data-tooltip="Go to next file"
         >
           &gt;
+        </button>
+        <button
+          class="pr-files-nav-btn pr-files-nav-btn-skip has-tooltip"
+          :disabled="nextUnviewedIndex === -1"
+          @click="currentIndex = nextUnviewedIndex"
+          data-tooltip="Skip to next unviewed file &#10;Shortcut: →"
+        >
+          &raquo;
         </button>
         <span class="pr-files-nav-counter">{{ currentIndex + 1 }}/{{ files.length }}</span>
         <span class="pr-files-nav-stats">
@@ -67,8 +85,16 @@
                 :key="i"
                 :class="'pr-diff-row pr-diff-row-' + line.type"
               >
-                <td class="pr-diff-gutter">{{ line.num ?? '' }}</td>
-                <td class="pr-diff-code"><pre>{{ line.content }}</pre></td>
+                <td
+                  class="pr-diff-gutter gutter-commentable"
+                  :class="{ 'has-comment': hasAnyCommentAt(line.num, singlePanelSide) }"
+                  @click="onGutterClick(line, singlePanelSide, $event)"
+                >
+                  {{ line.num ?? '' }}
+                  <span v-if="hasAnyCommentAt(line.num, singlePanelSide)" class="gutter-dot" :class="commentDotClass(line.num, singlePanelSide)"></span>
+                  <span v-else-if="line.num != null" class="gutter-add">+</span>
+                </td>
+                <td class="pr-diff-code"><pre v-if="line.html" v-html="line.html"></pre><pre v-else>{{ line.content }}</pre></td>
               </tr>
             </table>
           </div>
@@ -83,8 +109,16 @@
                   :key="i"
                   :class="'pr-diff-row pr-diff-row-' + line.type"
                 >
-                  <td class="pr-diff-gutter">{{ line.num ?? '' }}</td>
-                  <td class="pr-diff-code"><pre>{{ line.content }}</pre></td>
+                  <td
+                    class="pr-diff-gutter gutter-commentable"
+                    :class="{ 'has-comment': hasAnyCommentAt(line.num, 'LEFT') }"
+                    @click="onGutterClick(line, 'LEFT', $event)"
+                  >
+                    {{ line.num ?? '' }}
+                    <span v-if="hasAnyCommentAt(line.num, 'LEFT')" class="gutter-dot" :class="commentDotClass(line.num, 'LEFT')"></span>
+                    <span v-else-if="line.num != null" class="gutter-add">+</span>
+                  </td>
+                  <td class="pr-diff-code"><pre v-if="line.html" v-html="line.html"></pre><pre v-else>{{ line.content }}</pre></td>
                 </tr>
               </table>
             </div>
@@ -107,8 +141,16 @@
                   :key="i"
                   :class="'pr-diff-row pr-diff-row-' + line.type"
                 >
-                  <td class="pr-diff-gutter">{{ line.num ?? '' }}</td>
-                  <td class="pr-diff-code"><pre>{{ line.content }}</pre></td>
+                  <td
+                    class="pr-diff-gutter gutter-commentable"
+                    :class="{ 'has-comment': hasAnyCommentAt(line.num, 'RIGHT') }"
+                    @click="onGutterClick(line, 'RIGHT', $event)"
+                  >
+                    {{ line.num ?? '' }}
+                    <span v-if="hasAnyCommentAt(line.num, 'RIGHT')" class="gutter-dot" :class="commentDotClass(line.num, 'RIGHT')"></span>
+                    <span v-else-if="line.num != null" class="gutter-add">+</span>
+                  </td>
+                  <td class="pr-diff-code"><pre v-if="line.html" v-html="line.html"></pre><pre v-else>{{ line.content }}</pre></td>
                 </tr>
               </table>
             </div>
@@ -125,8 +167,16 @@
                 :key="i"
                 :class="'pr-diff-row pr-diff-row-' + line.type"
               >
-                <td class="pr-diff-gutter">{{ line.num ?? '' }}</td>
-                <td class="pr-diff-code"><pre>{{ line.content }}</pre></td>
+                <td
+                  class="pr-diff-gutter gutter-commentable"
+                  :class="{ 'has-comment': hasAnyCommentAt(line.num, singlePanelSide) }"
+                  @click="onGutterClick(line, singlePanelSide, $event)"
+                >
+                  {{ line.num ?? '' }}
+                  <span v-if="hasAnyCommentAt(line.num, singlePanelSide)" class="gutter-dot" :class="commentDotClass(line.num, singlePanelSide)"></span>
+                  <span v-else-if="line.num != null" class="gutter-add">+</span>
+                </td>
+                <td class="pr-diff-code"><pre v-if="line.html" v-html="line.html"></pre><pre v-else>{{ line.content }}</pre></td>
               </tr>
             </table>
           </div>
@@ -140,8 +190,16 @@
                   :key="i"
                   :class="'pr-diff-row pr-diff-row-' + line.type"
                 >
-                  <td class="pr-diff-gutter">{{ line.num ?? '' }}</td>
-                  <td class="pr-diff-code"><pre>{{ line.content }}</pre></td>
+                  <td
+                    class="pr-diff-gutter gutter-commentable"
+                    :class="{ 'has-comment': hasAnyCommentAt(line.num, 'LEFT') }"
+                    @click="onGutterClick(line, 'LEFT', $event)"
+                  >
+                    {{ line.num ?? '' }}
+                    <span v-if="hasAnyCommentAt(line.num, 'LEFT')" class="gutter-dot" :class="commentDotClass(line.num, 'LEFT')"></span>
+                    <span v-else-if="line.num != null" class="gutter-add">+</span>
+                  </td>
+                  <td class="pr-diff-code"><pre v-if="line.html" v-html="line.html"></pre><pre v-else>{{ line.content }}</pre></td>
                 </tr>
               </table>
             </div>
@@ -153,8 +211,16 @@
                   :key="i"
                   :class="'pr-diff-row pr-diff-row-' + line.type"
                 >
-                  <td class="pr-diff-gutter">{{ line.num ?? '' }}</td>
-                  <td class="pr-diff-code"><pre>{{ line.content }}</pre></td>
+                  <td
+                    class="pr-diff-gutter gutter-commentable"
+                    :class="{ 'has-comment': hasAnyCommentAt(line.num, 'RIGHT') }"
+                    @click="onGutterClick(line, 'RIGHT', $event)"
+                  >
+                    {{ line.num ?? '' }}
+                    <span v-if="hasAnyCommentAt(line.num, 'RIGHT')" class="gutter-dot" :class="commentDotClass(line.num, 'RIGHT')"></span>
+                    <span v-else-if="line.num != null" class="gutter-add">+</span>
+                  </td>
+                  <td class="pr-diff-code"><pre v-if="line.html" v-html="line.html"></pre><pre v-else>{{ line.content }}</pre></td>
                 </tr>
               </table>
             </div>
@@ -166,17 +232,47 @@
     </template>
 
     <p v-else class="pr-files-empty">No files changed</p>
+
+    <comment-popover
+      v-if="activeComment"
+      :thread="activeThread"
+      :pending-comment="activePending"
+      :path="activeComment.path"
+      :line="activeComment.line"
+      :side="activeComment.side"
+      :anchor-rect="activeComment.rect"
+      :line-content="activeComment.lineContent"
+      :owner="owner"
+      :repo="repo"
+      :pr-number="prNumber"
+      :commit-id="commitId"
+      @close="closeComment"
+      @add-pending="onPopoverAddPending"
+      @remove-pending="onPopoverRemovePending"
+      @edit-pending="onPopoverEditPending"
+      @comments-updated="onPopoverCommentsUpdated"
+    />
   </div>
 </template>
 
 <script lang="ts">
 import { Component, Prop, Vue, Watch } from 'vue-facing-decorator';
 import GitHubClient from '@/lib/githubClient';
-import type { PRFile } from '@/lib/githubClient';
+import type { PRFile, ReviewComment, PendingComment } from '@/lib/githubClient';
+import { parseCommentType } from '@/lib/githubClient';
+import { highlightLines } from '@/lib/highlight';
+
+interface CommentThread {
+  path: string;
+  line: number;
+  side: 'LEFT' | 'RIGHT';
+  comments: ReviewComment[];
+}
 
 interface DiffLine {
   num: number | null;
   content: string;
+  html?: string;
   type: 'context' | 'add' | 'del' | 'hunk';
 }
 
@@ -201,7 +297,7 @@ interface ScrollSegment {
   rightLength: number;
 }
 
-@Component({ emits: ['update:fileIndex', 'update:viewed'] })
+@Component({ emits: ['update:fileIndex', 'update:viewed', 'add-pending', 'remove-pending', 'edit-pending', 'comments-updated'] })
 export default class PrFilesTab extends Vue {
   @Prop() files!: PRFile[];
   @Prop() filesLoading!: boolean;
@@ -216,6 +312,9 @@ export default class PrFilesTab extends Vue {
   @Prop({ default: 4 }) tabSize!: number;
   @Prop({ default: () => ({}) }) viewedFiles!: Record<string, string>;
   @Prop({ default: '' }) prNodeId!: string;
+  @Prop({ default: () => [] }) reviewComments!: ReviewComment[];
+  @Prop({ default: () => [] }) pendingComments!: PendingComment[];
+  @Prop({ default: '' }) commitId!: string;
 
   currentIndex = 0;
   dropdownOpen = false;
@@ -227,6 +326,8 @@ export default class PrFilesTab extends Vue {
   viewportHeight   = 0;
   lineHeight       = 16.8;
   virtualScrollTop = 0;
+
+  activeComment: { path: string; line: number; side: 'LEFT' | 'RIGHT'; rect: DOMRect; lineContent: string } | null = null;
 
   private _contentCache = new Map<string, { base: string | null; head: string | null }>();
   private _loadId = 0;
@@ -273,6 +374,14 @@ export default class PrFilesTab extends Vue {
     return this.viewedFiles[this.currentFile?.filename] === 'VIEWED';
   }
 
+  get nextUnviewedIndex(): number {
+    return this.findUnviewedFile(1);
+  }
+
+  get prevUnviewedIndex(): number {
+    return this.findUnviewedFile(-1);
+  }
+
   async toggleViewed() {
     const file = this.currentFile;
     if (!file || !this.prNodeId) return;
@@ -306,21 +415,22 @@ export default class PrFilesTab extends Vue {
   get leftLines(): DiffLine[] {
     const file = this.currentFile;
     if (!file || this.baseContent === null) return [];
+    const fn = file.previous_filename || file.filename;
     if (file.status === 'removed') {
-      return this.buildFullFileLines(this.baseContent, new Set(), 'del', true);
+      return this.buildFullFileLines(this.baseContent, new Set(), 'del', true, fn);
     }
     const { deleted } = this.parseChangedLines(file.patch);
-    return this.buildFullFileLines(this.baseContent, deleted, 'del', false);
+    return this.buildFullFileLines(this.baseContent, deleted, 'del', false, fn);
   }
 
   get rightLines(): DiffLine[] {
     const file = this.currentFile;
     if (!file || this.headContent === null) return [];
     if (file.status === 'added') {
-      return this.buildFullFileLines(this.headContent, new Set(), 'add', true);
+      return this.buildFullFileLines(this.headContent, new Set(), 'add', true, file.filename);
     }
     const { added } = this.parseChangedLines(file.patch);
-    return this.buildFullFileLines(this.headContent, added, 'add', false);
+    return this.buildFullFileLines(this.headContent, added, 'add', false, file.filename);
   }
 
   get singlePanelLines(): DiffLine[] {
@@ -448,6 +558,7 @@ export default class PrFilesTab extends Vue {
     this.virtualScrollTop = 0;
     this.leftScrollTop = 0;
     this.rightScrollTop = 0;
+    this.activeComment = null;
     this.$emit('update:fileIndex', this.currentIndex);
     this.loadFileContent();
   }
@@ -467,6 +578,7 @@ export default class PrFilesTab extends Vue {
     window.addEventListener('resize', this._resizeHandler);
     window.addEventListener('keydown', this._keyHandler);
     document.addEventListener('mousedown', this._clickOutsideHandler);
+    document.addEventListener('mousedown', this._popoverClickOutside);
     if (this.files.length) {
       this.loadFileContent();
     }
@@ -476,6 +588,7 @@ export default class PrFilesTab extends Vue {
     window.removeEventListener('resize', this._resizeHandler);
     window.removeEventListener('keydown', this._keyHandler);
     document.removeEventListener('mousedown', this._clickOutsideHandler);
+    document.removeEventListener('mousedown', this._popoverClickOutside);
   }
 
   async loadFileContent() {
@@ -745,10 +858,13 @@ export default class PrFilesTab extends Vue {
     return { deleted, added };
   }
 
-  buildFullFileLines(content: string, changedLines: Set<number>, changeType: 'add' | 'del', allChanged: boolean): DiffLine[] {
-    return content.split('\n').map((line, i) => ({
+  buildFullFileLines(content: string, changedLines: Set<number>, changeType: 'add' | 'del', allChanged: boolean, filename?: string): DiffLine[] {
+    const rawLines = content.split('\n');
+    const htmlLines = filename ? highlightLines(content, filename) : null;
+    return rawLines.map((line, i) => ({
       num: i + 1,
       content: line,
+      html: htmlLines?.[i],
       type: allChanged || changedLines.has(i + 1) ? changeType : 'context',
     }));
   }
@@ -780,6 +896,24 @@ export default class PrFilesTab extends Vue {
         right.push({ num: newLine++, content, type: 'context' });
       }
     }
+
+    const file = this.currentFile;
+    if (file) {
+      const leftCode = left.filter(l => l.type !== 'hunk').map(l => l.content).join('\n');
+      const rightCode = right.filter(l => l.type !== 'hunk').map(l => l.content).join('\n');
+      const leftFn = file.previous_filename || file.filename;
+      const leftHtml = highlightLines(leftCode, leftFn);
+      const rightHtml = highlightLines(rightCode, file.filename);
+      if (leftHtml) {
+        let hi = 0;
+        for (const l of left) { if (l.type !== 'hunk') l.html = leftHtml[hi++]; }
+      }
+      if (rightHtml) {
+        let hi = 0;
+        for (const l of right) { if (l.type !== 'hunk') l.html = rightHtml[hi++]; }
+      }
+    }
+
     return { left, right };
   }
 
@@ -803,6 +937,143 @@ export default class PrFilesTab extends Vue {
     const map: Record<string, string> = { added: 'A', removed: 'D', modified: 'M', renamed: 'R', copied: 'C' };
     return map[status] || status[0]?.toUpperCase() || '?';
   }
+
+  // ─── Comment mapping ─────────────────────────────────
+
+  get singlePanelSide(): 'LEFT' | 'RIGHT' {
+    return this.currentFile?.status === 'removed' ? 'LEFT' : 'RIGHT';
+  }
+
+  get currentFileThreads(): { left: Map<number, CommentThread>; right: Map<number, CommentThread> } {
+    const left = new Map<number, CommentThread>();
+    const right = new Map<number, CommentThread>();
+    const filename = this.currentFile?.filename;
+    if (!filename) return { left, right };
+
+    const rootMap = new Map<number, ReviewComment>();
+    const replyMap = new Map<number, ReviewComment[]>();
+    for (const c of this.reviewComments) {
+      if (c.path !== filename) continue;
+      if (c.in_reply_to_id) {
+        const arr = replyMap.get(c.in_reply_to_id);
+        if (arr) arr.push(c);
+        else replyMap.set(c.in_reply_to_id, [c]);
+      } else {
+        rootMap.set(c.id, c);
+      }
+    }
+    for (const [rootId, root] of rootMap) {
+      const line = root.line;
+      if (line == null) continue;
+      const replies = replyMap.get(rootId) || [];
+      const all = [root, ...replies].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+      const thread: CommentThread = { path: filename, line, side: root.side, comments: all };
+      const map = root.side === 'LEFT' ? left : right;
+      map.set(line, thread);
+    }
+    return { left, right };
+  }
+
+  get currentFilePending(): { left: Map<number, PendingComment>; right: Map<number, PendingComment> } {
+    const left = new Map<number, PendingComment>();
+    const right = new Map<number, PendingComment>();
+    const filename = this.currentFile?.filename;
+    if (!filename) return { left, right };
+    for (const c of this.pendingComments) {
+      if (c.path !== filename) continue;
+      const map = c.side === 'LEFT' ? left : right;
+      map.set(c.line, c);
+    }
+    return { left, right };
+  }
+
+  hasThreadAt(lineNum: number | null, side: 'LEFT' | 'RIGHT'): boolean {
+    if (lineNum == null) return false;
+    const map = side === 'LEFT' ? this.currentFileThreads.left : this.currentFileThreads.right;
+    return map.has(lineNum);
+  }
+
+  hasPendingAt(lineNum: number | null, side: 'LEFT' | 'RIGHT'): boolean {
+    if (lineNum == null) return false;
+    const map = side === 'LEFT' ? this.currentFilePending.left : this.currentFilePending.right;
+    return map.has(lineNum);
+  }
+
+  hasAnyCommentAt(lineNum: number | null, side: 'LEFT' | 'RIGHT'): boolean {
+    return this.hasThreadAt(lineNum, side) || this.hasPendingAt(lineNum, side);
+  }
+
+  commentDotClass(lineNum: number | null, side: 'LEFT' | 'RIGHT'): string {
+    if (lineNum == null) return '';
+    const hasThread = this.hasThreadAt(lineNum, side);
+    const hasPending = this.hasPendingAt(lineNum, side);
+    if (hasThread && hasPending) return 'dot-both';
+    if (hasPending) return 'dot-pending';
+
+    const threadMap = side === 'LEFT' ? this.currentFileThreads.left : this.currentFileThreads.right;
+    const thread = threadMap.get(lineNum);
+    if (thread) {
+      const type = parseCommentType(thread.comments[0].body);
+      if (type === 'change-required') return 'dot-change-required';
+      if (type === 'question') return 'dot-question';
+      return 'dot-suggestion';
+    }
+    return '';
+  }
+
+  onGutterClick(line: DiffLine, side: 'LEFT' | 'RIGHT', event: MouseEvent) {
+    if (line.num == null) return;
+    const td = (event.target as HTMLElement).closest('.pr-diff-gutter') as HTMLElement;
+    if (!td) return;
+    const rect = td.getBoundingClientRect();
+    this.activeComment = {
+      path: this.currentFile.filename,
+      line: line.num,
+      side,
+      rect,
+      lineContent: line.content,
+    };
+  }
+
+  closeComment() {
+    this.activeComment = null;
+  }
+
+  get activeThread(): CommentThread | null {
+    if (!this.activeComment) return null;
+    const map = this.activeComment.side === 'LEFT' ? this.currentFileThreads.left : this.currentFileThreads.right;
+    return map.get(this.activeComment.line) ?? null;
+  }
+
+  get activePending(): PendingComment | null {
+    if (!this.activeComment) return null;
+    const map = this.activeComment.side === 'LEFT' ? this.currentFilePending.left : this.currentFilePending.right;
+    return map.get(this.activeComment.line) ?? null;
+  }
+
+  onPopoverAddPending(comment: PendingComment) {
+    this.$emit('add-pending', comment);
+  }
+
+  onPopoverRemovePending(id: string) {
+    this.$emit('remove-pending', id);
+    this.closeComment();
+  }
+
+  onPopoverEditPending(comment: PendingComment) {
+    this.$emit('edit-pending', comment);
+  }
+
+  onPopoverCommentsUpdated() {
+    this.$emit('comments-updated');
+  }
+
+  private _popoverClickOutside = (e: MouseEvent) => {
+    if (!this.activeComment) return;
+    const target = e.target as HTMLElement;
+    if (target.closest('.comment-popover') || target.closest('.pr-diff-gutter')) return;
+    this.closeComment();
+  };
 }
 </script>
 
@@ -819,7 +1090,7 @@ export default class PrFilesTab extends Vue {
   display: flex;
   align-items: center;
   gap: 8px;
-  height: 36px;
+  height: 40px;
   padding: 0 8px;
   font-size: 13px;
   background: var(--bg-secondary);
@@ -835,20 +1106,25 @@ export default class PrFilesTab extends Vue {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 30px;
+  height: 30px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--bg-primary);
   color: var(--text-primary);
   cursor: pointer;
-  font-size: 12px;
+  font-size: 15px;
   font-family: inherit;
   padding: 0;
   flex-shrink: 0;
 
   &:hover:not(:disabled) { background: var(--bg-tertiary); }
   &:disabled { opacity: 0.3; cursor: default; }
+}
+
+.pr-files-nav-btn-skip {
+  font-size: 17px;
+  font-weight: 700;
 }
 
 .pr-files-nav-viewed-btn {
@@ -1092,6 +1368,11 @@ export default class PrFilesTab extends Vue {
     line-height: 1.4;
     tab-size: var(--tab-size, 4);
   }
+
+  .hljs {
+    background: transparent;
+    padding: 0;
+  }
 }
 
 .pr-diff-row-context {
@@ -1102,28 +1383,28 @@ export default class PrFilesTab extends Vue {
   background: rgba(248, 81, 73, 0.1);
 
   .pr-diff-gutter { color: var(--accent-red); }
-  .pr-diff-code { color: #ffa198; }
+  .pr-diff-code pre { opacity: 0.75; }
 }
 
 .pr-diff-panel-right .pr-diff-row-add {
   background: rgba(63, 185, 80, 0.1);
 
   .pr-diff-gutter { color: var(--accent-green); }
-  .pr-diff-code { color: #7ee787; }
+  .pr-diff-code pre { opacity: 0.75; }
 }
 
 .pr-diff-panel-full-add .pr-diff-row-add {
   background: rgba(63, 185, 80, 0.1);
 
   .pr-diff-gutter { color: var(--accent-green); }
-  .pr-diff-code { color: #7ee787; }
+  .pr-diff-code pre { opacity: 0.75; }
 }
 
 .pr-diff-panel-full-del .pr-diff-row-del {
   background: rgba(248, 81, 73, 0.1);
 
   .pr-diff-gutter { color: var(--accent-red); }
-  .pr-diff-code { color: #ffa198; }
+  .pr-diff-code pre { opacity: 0.75; }
 }
 
 .pr-diff-row-hunk {
@@ -1161,4 +1442,102 @@ export default class PrFilesTab extends Vue {
 .file-status-modified { color: var(--accent-orange); }
 .file-status-renamed { color: var(--text-secondary); }
 .file-status-copied { color: var(--text-secondary); }
+
+.has-tooltip {
+  position: relative;
+}
+
+.has-tooltip::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 10px;
+  background: var(--bg-tertiary, #2d333b);
+  color: var(--text-primary, #cdd9e5);
+  font-size: 12px;
+  font-family: inherit;
+  font-weight: 400;
+  line-height: 1.4;
+  white-space: pre;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  z-index: 100;
+}
+
+.has-tooltip:hover::after {
+  opacity: 1;
+}
+
+.has-tooltip:disabled::after {
+  display: none;
+}
+
+/* Comment gutter indicators */
+.gutter-commentable {
+  position: relative;
+  cursor: pointer;
+}
+
+.gutter-add {
+  position: absolute;
+  left: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--accent-blue);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity 0.1s ease;
+  pointer-events: none;
+}
+
+.gutter-commentable:hover .gutter-add {
+  opacity: 1;
+}
+
+.gutter-dot {
+  position: absolute;
+  left: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.gutter-dot.dot-suggestion {
+  background: var(--accent-purple);
+}
+
+.gutter-dot.dot-change-required {
+  background: var(--accent-orange);
+}
+
+.gutter-dot.dot-question {
+  background: var(--accent-blue);
+}
+
+.gutter-dot.dot-pending {
+  background: transparent;
+  border: 2px dashed var(--accent-orange);
+}
+
+.gutter-dot.dot-both {
+  background: var(--accent-purple);
+  box-shadow: 3px -3px 0 0 var(--accent-orange);
+}
 </style>

@@ -224,10 +224,10 @@ export default class PrItem extends Vue {
 .pr-icon {
   flex-shrink: 0;
   margin-top: 3px;
-
-  &-open { color: var(--accent-green); }
-  &-draft { color: var(--text-tertiary); }
 }
+
+.pr-icon-open { color: var(--accent-green); }
+.pr-icon-draft { color: var(--text-tertiary); }
 
 .pr-content {
   flex: 1;
@@ -339,11 +339,11 @@ export default class PrItem extends Vue {
 
 .bot-icon {
   flex-shrink: 0;
-
-  &-high { color: var(--accent-red, #f85149); }
-  &-medium { color: var(--accent-orange, #d29922); }
-  &-low { color: var(--text-tertiary); }
 }
+
+.bot-icon-high { color: var(--accent-red, #f85149); }
+.bot-icon-medium { color: var(--accent-orange, #d29922); }
+.bot-icon-low { color: var(--text-tertiary); }
 
 .pr-status-row {
   display: flex;
@@ -364,14 +364,14 @@ export default class PrItem extends Vue {
   width: 8px;
   height: 8px;
   border-radius: 1px;
+}
 
-  &-passed { background: var(--accent-green); }
-  &-failed { background: var(--accent-red, #f85149); }
+.check-sq-passed { background: var(--accent-green); }
+.check-sq-failed { background: var(--accent-red, #f85149); }
 
-  &-pending {
-    background: var(--accent-orange, #d29922);
-    animation: pulse-check 1.5s ease-in-out infinite;
-  }
+.check-sq-pending {
+  background: var(--accent-orange, #d29922);
+  animation: pulse-check 1.5s ease-in-out infinite;
 }
 
 @keyframes pulse-check {
@@ -392,9 +392,9 @@ export default class PrItem extends Vue {
 
 .pr-stat {
   white-space: nowrap;
-
-  &-files { color: var(--text-tertiary); }
 }
+
+.pr-stat-files { color: var(--text-tertiary); }
 
 .pr-additions {
   color: var(--accent-green);
