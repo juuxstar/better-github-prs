@@ -16,12 +16,12 @@ app.use(express.json());
 
 // --- OAuth device-flow routes ---
 
-app.post('/api/auth/device-code', async (_req, res) => {
+app.post('/api/auth/device-code', async function(_req, res) {
   try {
     const response = await fetch(DEVICE_CODE_URL, {
-      method: 'POST',
+      method : 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify({ client_id: CLIENT_ID, scope: SCOPES }),
+      body   : JSON.stringify({ client_id: CLIENT_ID, scope: SCOPES }),
     });
     res.json(await response.json());
   }
@@ -31,7 +31,7 @@ app.post('/api/auth/device-code', async (_req, res) => {
   }
 });
 
-app.post('/api/auth/poll-token', async (req, res) => {
+app.post('/api/auth/poll-token', async function(req, res) {
   try {
     const { device_code } = req.body;
     const response = await fetch(TOKEN_URL, {
@@ -53,9 +53,7 @@ app.post('/api/auth/poll-token', async (req, res) => {
 
 // --- GitHub API proxy ---
 
-app.use(
-  '/api/github',
-  createProxyMiddleware({
+app.use('/api/github', createProxyMiddleware({
     target: 'https://api.github.com',
     changeOrigin: true,
     pathRewrite: { '^/api/github': '' },
@@ -73,8 +71,7 @@ app.use(
         }
       },
     },
-  }),
-);
+}));
 
 // --- Serve SPA in production ---
 
