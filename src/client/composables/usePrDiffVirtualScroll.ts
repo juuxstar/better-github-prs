@@ -1,18 +1,19 @@
-import { computed, type Ref } from 'vue';
-import type { CommonBlock } from '@/lib/prDiffTypes';
 import {
-  buildConnectorPaths,
-  buildScrollSegmentsFromState,
-  maxVirtualScrollTop,
-  resolveScroll,
+	buildConnectorPaths,
+	buildScrollSegmentsFromState,
+	maxVirtualScrollTop,
+	resolveScroll
 } from '@/lib/diffVirtualScroll';
+import type { CommonBlock } from '@/lib/prDiffTypes';
+
+import { computed, type Ref } from 'vue';
 
 export {
-  buildConnectorPaths,
-  buildScrollSegments,
-  buildScrollSegmentsFromState,
-  maxVirtualScrollTop,
-  resolveScroll,
+	buildConnectorPaths,
+	buildScrollSegments,
+	buildScrollSegmentsFromState,
+	maxVirtualScrollTop,
+	resolveScroll
 } from '@/lib/diffVirtualScroll';
 
 /**
@@ -20,57 +21,57 @@ export {
  * Class-based views (e.g. PrFilesTab) can import the same helpers from this module.
  */
 export function usePrDiffVirtualScroll(
-  commonBlocks: Ref<CommonBlock[]>,
-  baseContent: Ref<string | null>,
-  headContent: Ref<string | null>,
-  lineHeight: Ref<number>,
-  viewportHeight: Ref<number>,
-  leftScrollTop: Ref<number>,
-  rightScrollTop: Ref<number>,
+	commonBlocks: Ref<CommonBlock[]>,
+	baseContent: Ref<string | null>,
+	headContent: Ref<string | null>,
+	lineHeight: Ref<number>,
+	viewportHeight: Ref<number>,
+	leftScrollTop: Ref<number>,
+	rightScrollTop: Ref<number>
 ) {
-  const connectorPaths = computed(() =>
-    buildConnectorPaths(
-      commonBlocks.value,
-      leftScrollTop.value,
-      rightScrollTop.value,
-      viewportHeight.value,
-      lineHeight.value,
-      48,
-    ),
-  );
+	const connectorPaths = computed(() =>
+		buildConnectorPaths(
+			commonBlocks.value,
+			leftScrollTop.value,
+			rightScrollTop.value,
+			viewportHeight.value,
+			lineHeight.value,
+			48
+		)
+	);
 
-  function segments() {
-    return buildScrollSegmentsFromState(
-      commonBlocks.value,
-      baseContent.value,
-      headContent.value,
-      lineHeight.value,
-    );
-  }
+	function segments() {
+		return buildScrollSegmentsFromState(
+			commonBlocks.value,
+			baseContent.value,
+			headContent.value,
+			lineHeight.value
+		);
+	}
 
-  function applyVirtualScroll(virtualScrollTop: Ref<number>) {
-    const { left, right } = resolveScroll(segments(), virtualScrollTop.value);
-    leftScrollTop.value = left;
-    rightScrollTop.value = right;
-  }
+	function applyVirtualScroll(virtualScrollTop: Ref<number>) {
+		const { left, right } = resolveScroll(segments(), virtualScrollTop.value);
+		leftScrollTop.value   = left;
+		rightScrollTop.value  = right;
+	}
 
-  function onWheelVertical(virtualScrollTop: Ref<number>, deltaY: number) {
-    const segs = segments();
-    const maxScroll = maxVirtualScrollTop(segs, viewportHeight.value, lineHeight.value);
-    virtualScrollTop.value = Math.max(0, Math.min(maxScroll, virtualScrollTop.value + deltaY));
-    const { left, right } = resolveScroll(segs, virtualScrollTop.value);
-    leftScrollTop.value = left;
-    rightScrollTop.value = right;
-  }
+	function onWheelVertical(virtualScrollTop: Ref<number>, deltaY: number) {
+		const segs             = segments();
+		const maxScroll        = maxVirtualScrollTop(segs, viewportHeight.value, lineHeight.value);
+		virtualScrollTop.value = Math.max(0, Math.min(maxScroll, virtualScrollTop.value + deltaY));
+		const { left, right }  = resolveScroll(segs, virtualScrollTop.value);
+		leftScrollTop.value    = left;
+		rightScrollTop.value   = right;
+	}
 
-  function onMinimapScrollTo(virtualScrollTop: Ref<number>, fraction: number) {
-    const segs = segments();
-    const maxScroll = maxVirtualScrollTop(segs, viewportHeight.value, lineHeight.value);
-    virtualScrollTop.value = maxScroll * fraction;
-    const { left, right } = resolveScroll(segs, virtualScrollTop.value);
-    leftScrollTop.value = left;
-    rightScrollTop.value = right;
-  }
+	function onMinimapScrollTo(virtualScrollTop: Ref<number>, fraction: number) {
+		const segs             = segments();
+		const maxScroll        = maxVirtualScrollTop(segs, viewportHeight.value, lineHeight.value);
+		virtualScrollTop.value = maxScroll * fraction;
+		const { left, right }  = resolveScroll(segs, virtualScrollTop.value);
+		leftScrollTop.value    = left;
+		rightScrollTop.value   = right;
+	}
 
-  return { connectorPaths, segments, applyVirtualScroll, onWheelVertical, onMinimapScrollTo };
+	return { connectorPaths, segments, applyVirtualScroll, onWheelVertical, onMinimapScrollTo };
 }

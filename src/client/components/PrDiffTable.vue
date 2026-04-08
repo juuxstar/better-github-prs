@@ -3,11 +3,12 @@
     <tr
       v-for="(line, i) in lines"
       :key="i"
-      :class="'pr-diff-row pr-diff-row-' + line.type"
+      class="pr-diff-row"
+      :class="'pr-diff-row-' + line.type"
     >
       <td
         class="pr-diff-gutter gutter-commentable"
-        :class="{ 'has-comment': hasAnyCommentAt(line.num, side) }"
+        :class="{ 'has-comment' : hasAnyCommentAt(line.num, side) }"
         @click="onGutterClick(line, $event)"
       >
         {{ line.num ?? '' }}
@@ -20,22 +21,23 @@
 </template>
 
 <script setup lang="ts">
-import type { DiffLine } from '@/lib/prDiffTypes';
 import '@/styles/pr-diff.css';
 
+import type { DiffLine } from '@/lib/prDiffTypes';
+
 const props = defineProps<{
-  lines: DiffLine[];
-  side: 'LEFT' | 'RIGHT';
-  tableStyle?: Record<string, string>;
-  hasAnyCommentAt: (lineNum: number | null, side: 'LEFT' | 'RIGHT') => boolean;
-  commentDotClass: (lineNum: number | null, side: 'LEFT' | 'RIGHT') => string;
+	lines: DiffLine[];
+	side: 'LEFT' | 'RIGHT';
+	tableStyle?: Record<string, string>;
+	hasAnyCommentAt: (lineNum: number | null, side: 'LEFT' | 'RIGHT') => boolean;
+	commentDotClass: (lineNum: number | null, side: 'LEFT' | 'RIGHT') => string;
 }>();
 
 const emit = defineEmits<{
-  gutterClick: [line: DiffLine, side: 'LEFT' | 'RIGHT', event: MouseEvent];
+	gutterClick: [line: DiffLine, side: 'LEFT' | 'RIGHT', event: MouseEvent];
 }>();
 
 function onGutterClick(line: DiffLine, event: MouseEvent) {
-  emit('gutterClick', line, props.side, event);
+	emit('gutterClick', line, props.side, event);
 }
 </script>

@@ -1,8 +1,10 @@
 <template>
   <section class="screen">
-    <div class="error-container">
-      <div class="error-icon">!</div>
-      <p class="error-text">{{ message }}</p>
+    <div
+      class="u-flex u-flex-col u-items-center u-justify-center u-flex-1 u-gap-4 u-p-screen u-text-center"
+    >
+      <div class="error-icon u-flex u-items-center u-justify-center u-fw-700">!</div>
+      <p class="u-fs-15 u-max-w-400 u-text-secondary">{{ message }}</p>
       <button class="btn btn-secondary" @click="$emit('retry')">Try Again</button>
     </div>
   </section>
@@ -12,40 +14,21 @@
 import { Component, Prop, Vue } from 'vue-facing-decorator';
 
 /** Full-screen error display with a retry button. */
-@Component({ emits: ['retry'] })
+@Component({ emits : [ 'retry' ] })
 export default class ErrorScreen extends Vue {
-  @Prop() message!: string;
+
+	@Prop({ required : true }) readonly message!: string;
+
 }
 </script>
 
 <style>
-.error-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  flex: 1;
-  padding: 80px 32px;
-  text-align: center;
-  gap: 16px;
-}
-
 .error-icon {
   width: 56px;
   height: 56px;
   border-radius: 50%;
   background: var(--danger-btn-bg);
   color: var(--accent-red);
-  display: flex;
-  align-items: center;
-  justify-content: center;
   font-size: 28px;
-  font-weight: 700;
-}
-
-.error-text {
-  color: var(--text-secondary);
-  font-size: 15px;
-  max-width: 400px;
 }
 </style>

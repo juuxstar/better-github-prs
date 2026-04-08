@@ -47,342 +47,406 @@
 </template>
 
 <script lang="ts">
-import { Component, Watch, Vue } from 'vue-facing-decorator';
-import GitHubClient from '@/lib/githubClient';
 import type { ApiError } from '@/lib/githubClient';
+import GitHubClient      from '@/lib/githubClient';
 import {
-  getStoredToken,
-  storeToken,
-  clearToken,
-  startDeviceFlow,
-  pollForToken,
-  cancelPolling,
+	cancelPolling,
+	clearToken,
+	getStoredToken,
+	pollForToken,
+	startDeviceFlow,
+	storeToken
 } from '@/services/auth';
+
+import { Component, Vue, Watch } from 'vue-facing-decorator';
 
 /** Dashboard root — manages auth, data fetching, polling, and screen navigation. */
 @Component
 export default class App extends Vue {
-  currentScreen = 'auth';
-  currentTypeFilter = 'ready';
-  currentRepo = localStorage.getItem('selectedRepo') || '';
-  selectedTeam = (['alpha', 'beta', 'gamma'].includes(localStorage.getItem('selectedTeam')!) ? localStorage.getItem('selectedTeam')! : 'alpha');
-  allPRs: any[] = [];
-  user: any = null;
-  errorMessage = '';
-  deviceCode = '';
-  deviceUrl = '';
-  rateLimitVisible = false;
-  rateLimitMessage = '';
-  branches: any[] = [];
-  refreshing = false;
-  loginDisabled = false;
-  dataVersion = 0;
 
-  private _rateLimitTimer: ReturnType<typeof setTimeout> | null = null;
-  private _checksTimer: ReturnType<typeof setInterval> | null = null;
+	currentScreen = 'auth';
+	currentTypeFilter = 'ready';
+	currentRepo = localStorage.getItem('selectedRepo') || '';
+	selectedTeam = ([ 'alpha', 'beta', 'gamma' ].includes(localStorage.getItem('selectedTeam')!) ? localStorage.getItem('selectedTeam')! : 'alpha');
+	allPRs: any[] = [];
+	user: any = null;
+	errorMessage = '';
+	deviceCode = '';
+	deviceUrl = '';
+	rateLimitVisible = false;
+	rateLimitMessage = '';
+	branches: any[] = [];
+	refreshing = false;
+	loginDisabled = false;
+	dataVersion = 0;
 
-  get repos(): string[] {
-    const set = new Set<string>();
-    this.allPRs.forEach(pr => {
-      const m = pr.repository_url.match(/repos\/([^/]+\/[^/]+)/);
-      if (m) set.add(m[1]);
-    });
-    return [...set].sort((a, b) => a.localeCompare(b));
-  }
+	private _rateLimitTimer: ReturnType<typeof setTimeout> | null = null;
+	private _checksTimer: ReturnType<typeof setInterval> | null = null;
 
-  @Watch('repos')
-  onReposChange(newRepos: string[]) {
-    if (this.currentRepo && !newRepos.includes(this.currentRepo)) {
-      this.currentRepo = '';
-      localStorage.removeItem('selectedRepo');
-    }
-  }
+	get repos(): string[] {
+		const set = new Set<string>();
+		this.allPRs.forEach(pr => {
+			const m = pr.repository_url.match(/repos\/([^/]+\/[^/]+)/);
+			if (m) {
+				set.add(m[1]);
+			}
+		});
+		return [ ...set ].sort((a, b) => a.localeCompare(b));
+	}
 
-  mounted() {
-    this.init();
-  }
+	@Watch('repos')
+	onReposChange(newRepos: string[]) {
+		if (this.currentRepo && !newRepos.includes(this.currentRepo)) {
+			this.currentRepo = '';
+			localStorage.removeItem('selectedRepo');
+		}
+	}
 
-  // ── Screen management ──────────────────────────────────
+	mounted() {
+		this.init();
+	}
 
-  showScreen(name: string) {
-    this.currentScreen = name;
-  }
+	// ── Screen management ──────────────────────────────────
 
-  showError(msg: string | Error | any) {
-    this.errorMessage = typeof msg === 'string' ? msg : msg.message || 'Something went wrong';
-    this.showScreen('error');
-  }
+	showScreen(name: string) {
+		this.currentScreen = name;
+	}
 
-  // ── Rate limit ─────────────────────────────────────────
+	showError(msg: string | Error | any) {
+		this.errorMessage = typeof msg === 'string' ? msg : msg.message || 'Something went wrong';
+		this.showScreen('error');
+	}
 
-  showRateLimitBanner(error: ApiError) {
-    let msg = 'GitHub API rate limit exceeded.';
-    if (error.rateLimitReset) {
-      const resetMs = error.rateLimitReset.getTime() - Date.now();
-      if (resetMs > 0) {
-        const mins = Math.ceil(resetMs / 60000);
-        msg += ' Resets in ' + mins + ' minute' + (mins === 1 ? '' : 's') + '.';
-      }
-    }
-    this.rateLimitMessage = msg;
-    this.rateLimitVisible = true;
-    if (this._rateLimitTimer) clearTimeout(this._rateLimitTimer);
-    this._rateLimitTimer = setTimeout(() => { this.rateLimitVisible = false; }, 60000);
-  }
+	// ── Rate limit ─────────────────────────────────────────
 
-  dismissRateLimit() {
-    this.rateLimitVisible = false;
-    if (this._rateLimitTimer) clearTimeout(this._rateLimitTimer);
-  }
+	showRateLimitBanner(error: ApiError) {
+		let msg = 'GitHub API rate limit exceeded.';
+		if (error.rateLimitReset) {
+			const resetMs = error.rateLimitReset.getTime() - Date.now();
+			if (resetMs > 0) {
+				const mins  = Math.ceil(resetMs / 60000);
+				msg        += ` Resets in ${mins} minute${mins === 1 ? '' : 's'}.`;
+			}
+		}
+		this.rateLimitMessage = msg;
+		this.rateLimitVisible = true;
+		if (this._rateLimitTimer) {
+			clearTimeout(this._rateLimitTimer);
+		}
+		this._rateLimitTimer = setTimeout(() => {
+			this.rateLimitVisible = false;
+		}, 60000);
+	}
 
-  // ── API error handling ─────────────────────────────────
+	dismissRateLimit() {
+		this.rateLimitVisible = false;
+		if (this._rateLimitTimer) {
+			clearTimeout(this._rateLimitTimer);
+		}
+	}
 
-  isRateLimitError(error: any): boolean {
-    return error.rateLimitReset || error.message?.includes('rate limit');
-  }
+	// ── API error handling ─────────────────────────────────
 
-  async handleApiError(error: any): Promise<boolean> {
-    if (this.isRateLimitError(error)) {
-      this.showRateLimitBanner(error);
-      return true;
-    }
-    if (error.status === 401) {
-      clearToken();
-      this.user = null;
-      this.showScreen('auth');
-      return true;
-    }
-    return false;
-  }
+	isRateLimitError(error: any): boolean {
+		return error.rateLimitReset || error.message?.includes('rate limit');
+	}
 
-  handleAsyncError(error: any) {
-    if (this.isRateLimitError(error)) this.showRateLimitBanner(error);
-  }
+	async handleApiError(error: any): Promise<boolean> {
+		if (this.isRateLimitError(error)) {
+			this.showRateLimitBanner(error);
+			return true;
+		}
+		if (error.status === 401) {
+			clearToken();
+			this.user = null;
+			this.showScreen('auth');
+			return true;
+		}
+		return false;
+	}
 
-  // ── Filter changes ─────────────────────────────────────
+	handleAsyncError(error: any) {
+		if (this.isRateLimitError(error)) {
+			this.showRateLimitBanner(error);
+		}
+	}
 
-  setTypeFilter(type: string) {
-    this.currentTypeFilter = type;
-  }
+	// ── Filter changes ─────────────────────────────────────
 
-  setRepo(repo: string) {
-    this.currentRepo = repo;
-    if (repo) localStorage.setItem('selectedRepo', repo);
-    else localStorage.removeItem('selectedRepo');
-    this.fetchAndRenderBranches();
-  }
+	setTypeFilter(type: string) {
+		this.currentTypeFilter = type;
+	}
 
-  setTeam(team: string) {
-    this.selectedTeam = team;
-    localStorage.setItem('selectedTeam', team);
-  }
+	setRepo(repo: string) {
+		this.currentRepo = repo;
+		if (repo) {
+			localStorage.setItem('selectedRepo', repo);
+		}
+		else {
+			localStorage.removeItem('selectedRepo');
+		}
+		this.fetchAndRenderBranches();
+	}
 
-  // ── Auth: Device Flow ──────────────────────────────────
+	setTeam(team: string) {
+		this.selectedTeam = team;
+		localStorage.setItem('selectedTeam', team);
+	}
 
-  async handleLogin() {
-    this.loginDisabled = true;
-    try {
-      const response = await startDeviceFlow();
-      this.deviceCode = response.user_code;
-      this.deviceUrl = response.verification_uri;
-      this.showScreen('device');
+	// ── Auth: Device Flow ──────────────────────────────────
 
-      const token = await pollForToken(response.device_code, response.interval, response.expires_in);
-      storeToken(token);
-      GitHubClient.setToken(token);
-      await this.loadData();
-    } catch (error: any) {
-      this.loginDisabled = false;
-      if (error.message !== 'Authentication cancelled') {
-        this.showError(error.message);
-      } else {
-        this.showScreen('auth');
-      }
-    }
-  }
+	async handleLogin() {
+		this.loginDisabled = true;
+		try {
+			const response  = await startDeviceFlow();
+			this.deviceCode = response.user_code;
+			this.deviceUrl  = response.verification_uri;
+			this.showScreen('device');
 
-  async handleCancelAuth() {
-    cancelPolling();
-    this.loginDisabled = false;
-    this.showScreen('auth');
-  }
+			const token = await pollForToken(response.device_code, response.interval, response.expires_in);
+			storeToken(token);
+			GitHubClient.setToken(token);
+			await this.loadData();
+		}
+		catch (error: any) {
+			this.loginDisabled = false;
+			if (error.message !== 'Authentication cancelled') {
+				this.showError(error.message);
+			}
+			else {
+				this.showScreen('auth');
+			}
+		}
+	}
 
-  // ── Logout ─────────────────────────────────────────────
+	async handleCancelAuth() {
+		cancelPolling();
+		this.loginDisabled = false;
+		this.showScreen('auth');
+	}
 
-  handleLogout() {
-    this.stopChecksPolling();
-    clearToken();
-    GitHubClient.clear();
-    this.allPRs = [];
-    this.user = null;
-    this.branches = [];
-    this.showScreen('auth');
-  }
+	// ── Logout ─────────────────────────────────────────────
 
-  // ── Refresh ────────────────────────────────────────────
+	handleLogout() {
+		this.stopChecksPolling();
+		clearToken();
+		GitHubClient.clear();
+		this.allPRs   = [];
+		this.user     = null;
+		this.branches = [];
+		this.showScreen('auth');
+	}
 
-  async handleRefresh() {
-    this.stopChecksPolling();
-    this.refreshing = true;
-    try {
-      GitHubClient.clearAsyncCaches();
-      await this.fetchPRs(this.currentRepo);
-      this.dataVersion++;
-      await this.fetchAndRenderBranches();
-      this.fetchAsyncData();
-    } catch (error: any) {
-      const handled = await this.handleApiError(error);
-      if (!handled) this.showError(error.message);
-    } finally {
-      this.refreshing = false;
-    }
-  }
+	// ── Refresh ────────────────────────────────────────────
 
-  // ── Data loading ───────────────────────────────────────
+	async handleRefresh() {
+		this.stopChecksPolling();
+		this.refreshing = true;
+		try {
+			GitHubClient.clearAsyncCaches();
+			await this.fetchPRs(this.currentRepo);
+			this.dataVersion++;
+			await this.fetchAndRenderBranches();
+			this.fetchAsyncData();
+		}
+		catch (error: any) {
+			const handled = await this.handleApiError(error);
+			if (!handled) {
+				this.showError(error.message);
+			}
+		}
+		finally {
+			this.refreshing = false;
+		}
+	}
 
-  async fetchPRs(repo?: string) {
-    if (repo) {
-      const repoPRs = await GitHubClient.fetchRepoPRs(repo);
-      const existingIds = new Set(repoPRs.map((pr: any) => pr.id));
-      this.allPRs = [
-        ...repoPRs,
-        ...this.allPRs.filter(pr => {
-          const m = pr.repository_url.match(/repos\/([^/]+\/[^/]+)/);
-          return !existingIds.has(pr.id) && m && m[1] !== repo;
-        }),
-      ];
-    } else {
-      this.allPRs = await GitHubClient.fetchAllAccessiblePRs();
-    }
-    const logins = [...new Set(this.allPRs.map(pr => pr.user.login))];
-    await GitHubClient.fetchUserFirstNames(logins);
-  }
+	// ── Data loading ───────────────────────────────────────
 
-  getVisiblePRs(): any[] {
-    if (!this.currentRepo) return this.allPRs;
-    return this.allPRs.filter(pr => {
-      const m = pr.repository_url.match(/repos\/([^/]+\/[^/]+)/);
-      return m && m[1] === this.currentRepo;
-    });
-  }
+	async fetchPRs(repo?: string) {
+		if (repo) {
+			const repoPRs     = await GitHubClient.fetchRepoPRs(repo);
+			const existingIds = new Set(repoPRs.map((pr: any) => pr.id));
+			this.allPRs       = [
+				...repoPRs,
+				...this.allPRs.filter(pr => {
+					const m = pr.repository_url.match(/repos\/([^/]+\/[^/]+)/);
+					return !existingIds.has(pr.id) && m && m[1] !== repo;
+				}),
+			];
+		}
+		else {
+			this.allPRs = await GitHubClient.fetchAllAccessiblePRs();
+		}
+		const logins = [ ...new Set(this.allPRs.map(pr => pr.user.login)) ];
+		await GitHubClient.fetchUserFirstNames(logins);
+	}
 
-  fetchAsyncData() {
-    const prs = this.getVisiblePRs();
-    GitHubClient.fetchBotCommentCounts(prs).then(() => { this.dataVersion++; }).catch(e => this.handleAsyncError(e));
-    GitHubClient.fetchPRStats(prs).then(() => { this.dataVersion++; }).catch(e => this.handleAsyncError(e));
-    GitHubClient.fetchChecks(prs).then(() => {
-      this.dataVersion++;
-      if (this.getPRsNeedingCheckRefresh().length > 0) this.startChecksPolling();
-    }).catch(e => this.handleAsyncError(e));
-  }
+	getVisiblePRs(): any[] {
+		if (!this.currentRepo) {
+			return this.allPRs;
+		}
+		return this.allPRs.filter(pr => {
+			const m = pr.repository_url.match(/repos\/([^/]+\/[^/]+)/);
+			return m && m[1] === this.currentRepo;
+		});
+	}
 
-  // ── Checks polling ─────────────────────────────────────
+	fetchAsyncData() {
+		const prs = this.getVisiblePRs();
+		GitHubClient.fetchBotCommentCounts(prs).then(() => {
+			this.dataVersion++;
+		}).catch(e => this.handleAsyncError(e));
+		GitHubClient.fetchPRStats(prs).then(() => {
+			this.dataVersion++;
+		}).catch(e => this.handleAsyncError(e));
+		GitHubClient.fetchChecks(prs).then(() => {
+			this.dataVersion++;
+			if (this.getPRsNeedingCheckRefresh().length > 0) {
+				this.startChecksPolling();
+			}
+		}).catch(e => this.handleAsyncError(e));
+	}
 
-  isMergeLabeled(pr: any): boolean {
-    const hasL = (name: string) => pr.labels?.some((l: any) => l.name.toLowerCase() === name.toLowerCase());
-    return hasL('ready to merge') || hasL('δ: ready to merge');
-  }
+	// ── Checks polling ─────────────────────────────────────
 
-  getPRsNeedingCheckRefresh(): any[] {
-    return this.allPRs.filter(pr => {
-      const checks = GitHubClient.getChecks(pr.id);
-      if (!checks) return false;
-      if (checks.pending > 0) return true;
-      if (this.isMergeLabeled(pr) && (checks.failed > 0 || checks.pending > 0)) return true;
-      return false;
-    });
-  }
+	isMergeLabeled(pr: any): boolean {
+		const hasL = (name: string) => pr.labels?.some((l: any) => l.name.toLowerCase() === name.toLowerCase());
+		return hasL('ready to merge') || hasL('δ: ready to merge');
+	}
 
-  startChecksPolling() {
-    this.stopChecksPolling();
-    this._checksTimer = setInterval(() => {
-      const needRefresh = this.getPRsNeedingCheckRefresh();
-      if (needRefresh.length === 0) { this.stopChecksPolling(); return; }
-      needRefresh.forEach(pr => GitHubClient.clearChecksCacheFor(pr.id));
-      GitHubClient.fetchChecks(needRefresh).then(() => {
-        this.dataVersion++;
-        if (this.getPRsNeedingCheckRefresh().length === 0) this.stopChecksPolling();
-      }).catch((error: any) => {
-        this.handleAsyncError(error);
-        if (error.rateLimitReset) this.stopChecksPolling();
-      });
-    }, 10000);
-  }
+	getPRsNeedingCheckRefresh(): any[] {
+		return this.allPRs.filter(pr => {
+			const checks = GitHubClient.getChecks(pr.id);
+			if (!checks) {
+				return false;
+			}
+			if (checks.pending > 0) {
+				return true;
+			}
+			if (this.isMergeLabeled(pr) && (checks.failed > 0 || checks.pending > 0)) {
+				return true;
+			}
+			return false;
+		});
+	}
 
-  stopChecksPolling() {
-    if (this._checksTimer) {
-      clearInterval(this._checksTimer);
-      this._checksTimer = null;
-    }
-  }
+	startChecksPolling() {
+		this.stopChecksPolling();
+		this._checksTimer = setInterval(() => {
+			const needRefresh = this.getPRsNeedingCheckRefresh();
+			if (needRefresh.length === 0) {
+				this.stopChecksPolling(); return;
+			}
+			needRefresh.forEach(pr => GitHubClient.clearChecksCacheFor(pr.id));
+			GitHubClient.fetchChecks(needRefresh).then(() => {
+				this.dataVersion++;
+				if (this.getPRsNeedingCheckRefresh().length === 0) {
+					this.stopChecksPolling();
+				}
+			}).catch((error: any) => {
+				this.handleAsyncError(error);
+				if (error.rateLimitReset) {
+					this.stopChecksPolling();
+				}
+			});
+		}, 10000);
+	}
 
-  // ── Create PR ──────────────────────────────────────────
+	stopChecksPolling() {
+		if (this._checksTimer) {
+			clearInterval(this._checksTimer);
+			this._checksTimer = null;
+		}
+	}
 
-  async fetchAndRenderBranches() {
-    if (!this.currentRepo) { this.branches = []; return; }
-    try {
-      this.branches = await GitHubClient.fetchBranchesWithoutPRs(this.currentRepo);
-    } catch (error: any) {
-      const handled = await this.handleApiError(error);
-      if (!handled) this.branches = [];
-    }
-  }
+	// ── Create PR ──────────────────────────────────────────
 
-  async handleCreatePR({ branch, title }: { branch: string; title: string }) {
-    if (!title || !this.currentRepo) return;
-    try {
-      await GitHubClient.createPR(this.currentRepo, branch, 'dev', title, ['α: review requested']);
-      await this.handleRefresh();
-      this.fetchAndRenderBranches();
-    } catch (error: any) {
-      const handled = await this.handleApiError(error);
-      if (!handled) this.showError('Failed to create PR: ' + error.message);
-    }
-  }
+	async fetchAndRenderBranches() {
+		if (!this.currentRepo) {
+			this.branches = []; return;
+		}
+		try {
+			this.branches = await GitHubClient.fetchBranchesWithoutPRs(this.currentRepo);
+		}
+		catch (error: any) {
+			const handled = await this.handleApiError(error);
+			if (!handled) {
+				this.branches = [];
+			}
+		}
+	}
 
-  // ── Board events ───────────────────────────────────────
+	async handleCreatePR({ branch, title }: { branch: string; title: string }) {
+		if (!title || !this.currentRepo) {
+			return;
+		}
+		try {
+			await GitHubClient.createPR(this.currentRepo, branch, 'dev', title, [ 'α: review requested' ]);
+			await this.handleRefresh();
+			this.fetchAndRenderBranches();
+		}
+		catch (error: any) {
+			const handled = await this.handleApiError(error);
+			if (!handled) {
+				this.showError(`Failed to create PR: ${error.message}`);
+			}
+		}
+	}
 
-  async handleBoardApiError(error: any) {
-    const handled = await this.handleApiError(error);
-    if (!handled) this.showError('Failed to move PR: ' + error.message);
-  }
+	// ── Board events ───────────────────────────────────────
 
-  handlePRsChanged() {
-    this.dataVersion++;
-  }
+	async handleBoardApiError(error: any) {
+		const handled = await this.handleApiError(error);
+		if (!handled) {
+			this.showError(`Failed to move PR: ${error.message}`);
+		}
+	}
 
-  // ── Retry ──────────────────────────────────────────────
+	handlePRsChanged() {
+		this.dataVersion++;
+	}
 
-  handleRetry() {
-    if (GitHubClient.getToken()) this.loadData();
-    else this.showScreen('auth');
-  }
+	// ── Retry ──────────────────────────────────────────────
 
-  // ── Main init ──────────────────────────────────────────
+	handleRetry() {
+		if (GitHubClient.getToken()) {
+			this.loadData();
+		}
+		else {
+			this.showScreen('auth');
+		}
+	}
 
-  async loadData() {
-    this.showScreen('loading');
-    try {
-      await GitHubClient.fetchCurrentUser();
-      this.user = GitHubClient.getUser();
-      await this.fetchPRs(this.currentRepo || undefined);
-      this.showScreen('pr');
-      this.fetchAsyncData();
-      this.fetchAndRenderBranches();
-    } catch (error: any) {
-      const handled = await this.handleApiError(error);
-      if (!handled) this.showError(error.message);
-    }
-  }
+	// ── Main init ──────────────────────────────────────────
 
-  async init() {
-    const token = getStoredToken();
-    if (token) {
-      GitHubClient.setToken(token);
-      await this.loadData();
-    } else {
-      this.showScreen('auth');
-    }
-  }
+	async loadData() {
+		this.showScreen('loading');
+		try {
+			await GitHubClient.fetchCurrentUser();
+			this.user = GitHubClient.getUser();
+			await this.fetchPRs(this.currentRepo || undefined);
+			this.showScreen('pr');
+			this.fetchAsyncData();
+			this.fetchAndRenderBranches();
+		}
+		catch (error: any) {
+			const handled = await this.handleApiError(error);
+			if (!handled) {
+				this.showError(error.message);
+			}
+		}
+	}
+
+	async init() {
+		const token = getStoredToken();
+		if (token) {
+			GitHubClient.setToken(token);
+			await this.loadData();
+		}
+		else {
+			this.showScreen('auth');
+		}
+	}
+
 }
 </script>

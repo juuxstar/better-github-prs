@@ -1,6 +1,6 @@
 <template>
   <select
-    class="appearance-select"
+    class="appearance-select u-fs-13 u-cursor-pointer"
     :value="appearance"
     @change="onChange"
   >
@@ -11,33 +11,36 @@
 </template>
 
 <script lang="ts">
-import { Component, Vue } from 'vue-facing-decorator';
 import type { Appearance } from '@/lib/colorScheme';
 import { getAppearance, setAppearance, subscribeColorScheme } from '@/lib/colorScheme';
+
+import { Component, Vue } from 'vue-facing-decorator';
 
 /** App-wide light / dark / system (follow OS) appearance. */
 @Component
 export default class AppearanceSelect extends Vue {
-  appearance: Appearance = getAppearance();
-  private _unsub: (() => void) | null = null;
 
-  mounted() {
-    this.appearance = getAppearance();
-    this._unsub = subscribeColorScheme(() => {
-      this.appearance = getAppearance();
-    });
-  }
+	appearance: Appearance = getAppearance();
+	private _unsub: (() => void) | null = null;
 
-  beforeUnmount() {
-    this._unsub?.();
-    this._unsub = null;
-  }
+	mounted() {
+		this.appearance = getAppearance();
+		this._unsub     = subscribeColorScheme(() => {
+			this.appearance = getAppearance();
+		});
+	}
 
-  onChange(e: Event) {
-    const v = (e.target as HTMLSelectElement).value as Appearance;
-    setAppearance(v);
-    this.appearance = getAppearance();
-  }
+	beforeUnmount() {
+		this._unsub?.();
+		this._unsub = null;
+	}
+
+	onChange(e: Event) {
+		const v = (e.target as HTMLSelectElement).value as Appearance;
+		setAppearance(v);
+		this.appearance = getAppearance();
+	}
+
 }
 </script>
 
@@ -48,9 +51,7 @@ export default class AppearanceSelect extends Vue {
   color: var(--text-secondary);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  font-size: 13px;
   font-family: inherit;
-  cursor: pointer;
   appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 16 16' fill='%238b949e'%3E%3Cpath d='M4.427 7.427l3.396 3.396a.25.25 0 0 0 .354 0l3.396-3.396A.25.25 0 0 0 11.396 7H4.604a.25.25 0 0 0-.177.427Z'/%3E%3C/svg%3E");
   background-repeat: no-repeat;

@@ -1,6 +1,6 @@
 <template>
   <div
-    class="diff-minimap"
+    class="diff-minimap u-relative u-overflow-hidden u-flex-shrink-0 u-cursor-pointer"
     ref="container"
     @mousedown="onMouseDown"
     @mousemove="onMouseMove"
@@ -14,235 +14,258 @@
     <div
       v-if="hoverY >= 0 && !dragging"
       class="diff-minimap-hover"
-      :style="{ top: hoverY + 'px', height: viewportIndicatorHeight + 'px' }"
+      :style="{ top : hoverY + 'px', height : viewportIndicatorHeight + 'px' }"
     ></div>
   </div>
 </template>
 
 <script lang="ts">
-import { Component, Prop, Vue, Watch } from 'vue-facing-decorator';
 import { subscribeColorScheme } from '@/lib/colorScheme';
 
+import { Component, Prop, Vue, Watch } from 'vue-facing-decorator';
+
 interface MinimapLine {
-  type: 'context' | 'add' | 'del' | 'hunk';
+	type: 'context' | 'add' | 'del' | 'hunk';
 }
 
 function minimapLineColors(): Record<string, string> {
-  const s = getComputedStyle(document.documentElement);
-  const g = (name: string, fallback: string) => s.getPropertyValue(name).trim() || fallback;
-  return {
-    add: g('--diff-minimap-add', 'rgba(63, 185, 80, 0.7)'),
-    del: g('--diff-minimap-del', 'rgba(248, 81, 73, 0.7)'),
-    hunk: g('--diff-minimap-hunk', 'rgba(56, 139, 253, 0.45)'),
-    context: '',
-  };
+	const s = getComputedStyle(document.documentElement);
+	const g = (name: string, fallback: string) => s.getPropertyValue(name).trim() || fallback;
+	return {
+		add     : g('--diff-minimap-add', 'rgba(63, 185, 80, 0.7)'),
+		del     : g('--diff-minimap-del', 'rgba(248, 81, 73, 0.7)'),
+		hunk    : g('--diff-minimap-hunk', 'rgba(56, 139, 253, 0.45)'),
+		context : '',
+	};
 }
 
-@Component({ emits: ['scroll-to'] })
+@Component({ emits : [ 'scroll-to' ] })
 export default class DiffMinimap extends Vue {
-  /** Fallback single-column source when both `leftLines` and `rightLines` are empty. */
-  @Prop({ default: () => [] }) lines!: MinimapLine[];
-  @Prop({ default: () => [] }) leftLines!: MinimapLine[];
-  @Prop({ default: () => [] }) rightLines!: MinimapLine[];
-  @Prop({ default: 0 }) viewportHeight!: number;
-  @Prop({ default: 0 }) scrollTop!: number;
-  @Prop({ default: 0 }) totalContentHeight!: number;
 
-  hoverY = -1;
-  dragging = false;
-  containerHeight = 0;
+	/** Fallback single-column source when both `leftLines` and `rightLines` are empty. */
+	@Prop({ default : () => [] }) readonly lines!: MinimapLine[];
+	@Prop({ default : () => [] }) readonly leftLines!: MinimapLine[];
+	@Prop({ default : () => [] }) readonly rightLines!: MinimapLine[];
+	@Prop({ default : 0 }) readonly viewportHeight!: number;
+	@Prop({ default : 0 }) readonly scrollTop!: number;
+	@Prop({ default : 0 }) readonly totalContentHeight!: number;
 
-  private _resizeObserver: ResizeObserver | null = null;
-  private _unsubScheme: (() => void) | null = null;
+	hoverY = -1;
+	dragging = false;
+	containerHeight = 0;
 
-  get viewportFraction(): number {
-    if (this.totalContentHeight <= 0) return 1;
-    return Math.min(1, this.viewportHeight / this.totalContentHeight);
-  }
+	private _resizeObserver: ResizeObserver | null = null;
+	private _unsubScheme: (() => void) | null = null;
 
-  get viewportIndicatorHeight(): number {
-    return Math.max(8, this.containerHeight * this.viewportFraction);
-  }
+	get viewportFraction(): number {
+		if (this.totalContentHeight <= 0) {
+			return 1;
+		}
+		return Math.min(1, this.viewportHeight / this.totalContentHeight);
+	}
 
-  get scrollFraction(): number {
-    const scrollable = this.totalContentHeight - this.viewportHeight;
-    if (scrollable <= 0) return 0;
-    return Math.min(1, this.scrollTop / scrollable);
-  }
+	get viewportIndicatorHeight(): number {
+		return Math.max(8, this.containerHeight * this.viewportFraction);
+	}
 
-  get viewportStyle(): Record<string, string> {
-    const maxTop = this.containerHeight - this.viewportIndicatorHeight;
-    const top = maxTop * this.scrollFraction;
-    return {
-      top: top + 'px',
-      height: this.viewportIndicatorHeight + 'px',
-    };
-  }
+	get scrollFraction(): number {
+		const scrollable = this.totalContentHeight - this.viewportHeight;
+		if (scrollable <= 0) {
+			return 0;
+		}
+		return Math.min(1, this.scrollTop / scrollable);
+	}
 
-  mounted() {
-    this._resizeObserver = new ResizeObserver(() => {
-      this.updateContainerHeight();
-      this.draw();
-    });
-    const el = this.$refs.container as HTMLElement;
-    if (el) this._resizeObserver.observe(el);
-    this.updateContainerHeight();
-    this.draw();
-    this._unsubScheme = subscribeColorScheme(() => this.draw());
-  }
+	get viewportStyle(): Record<string, string> {
+		const maxTop = this.containerHeight - this.viewportIndicatorHeight;
+		const top    = maxTop * this.scrollFraction;
+		return {
+			top    : `${top}px`,
+			height : `${this.viewportIndicatorHeight}px`,
+		};
+	}
 
-  updateContainerHeight() {
-    const el = this.$refs.container as HTMLElement | undefined;
-    this.containerHeight = el?.clientHeight ?? 0;
-  }
+	mounted() {
+		this._resizeObserver = new ResizeObserver(() => {
+			this.updateContainerHeight();
+			this.draw();
+		});
+		const el = this.$refs.container as HTMLElement;
+		if (el) {
+			this._resizeObserver.observe(el);
+		}
+		this.updateContainerHeight();
+		this.draw();
+		this._unsubScheme = subscribeColorScheme(() => this.draw());
+	}
 
-  beforeUnmount() {
-    this._resizeObserver?.disconnect();
-    this._unsubScheme?.();
-    this._unsubScheme = null;
-    document.removeEventListener('mousemove', this._onDragMove);
-    document.removeEventListener('mouseup', this._onDragEnd);
-  }
+	updateContainerHeight() {
+		const el             = this.$refs.container as HTMLElement | undefined;
+		this.containerHeight = el?.clientHeight ?? 0;
+	}
 
-  @Watch('lines')
-  onLinesChanged() {
-    this.draw();
-  }
+	beforeUnmount() {
+		this._resizeObserver?.disconnect();
+		this._unsubScheme?.();
+		this._unsubScheme = null;
+		document.removeEventListener('mousemove', this._onDragMove);
+		document.removeEventListener('mouseup', this._onDragEnd);
+	}
 
-  @Watch('leftLines')
-  onLeftLinesChanged() {
-    this.draw();
-  }
+	@Watch('lines')
+	onLinesChanged() {
+		this.draw();
+	}
 
-  @Watch('rightLines')
-  onRightLinesChanged() {
-    this.draw();
-  }
+	@Watch('leftLines')
+	onLeftLinesChanged() {
+		this.draw();
+	}
 
-  draw() {
-    const canvas = this.$refs.canvas as HTMLCanvasElement | undefined;
-    const container = this.$refs.container as HTMLElement | undefined;
-    if (!canvas || !container) return;
+	@Watch('rightLines')
+	onRightLinesChanged() {
+		this.draw();
+	}
 
-    const w = container.clientWidth;
-    const h = container.clientHeight;
-    if (w === 0 || h === 0) return;
+	draw() {
+		const canvas    = this.$refs.canvas as HTMLCanvasElement | undefined;
+		const container = this.$refs.container as HTMLElement | undefined;
+		if (!canvas || !container) {
+			return;
+		}
 
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = w * dpr;
-    canvas.height = h * dpr;
-    canvas.style.width = w + 'px';
-    canvas.style.height = h + 'px';
+		const w = container.clientWidth;
+		const h = container.clientHeight;
+		if (w === 0 || h === 0) {
+			return;
+		}
 
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    ctx.scale(dpr, dpr);
-    ctx.clearRect(0, 0, w, h);
+		const dpr           = window.devicePixelRatio || 1;
+		canvas.width        = w * dpr;
+		canvas.height       = h * dpr;
+		canvas.style.width  = `${w}px`;
+		canvas.style.height = `${h}px`;
 
-    const LINE_COLORS = minimapLineColors();
-    const left = this.leftLines;
-    const right = this.rightLines;
-    const fallback = this.lines;
-    const useDual = left.length > 0 || right.length > 0;
+		const ctx = canvas.getContext('2d');
+		if (!ctx) {
+			return;
+		}
+		ctx.scale(dpr, dpr);
+		ctx.clearRect(0, 0, w, h);
 
-    if (!useDual) {
-      if (!fallback.length) return;
-      const sliceHeight = h / fallback.length;
-      for (let i = 0; i < fallback.length; i++) {
-        const color = LINE_COLORS[fallback[i].type];
-        if (!color) continue;
-        ctx.fillStyle = color;
-        const y = i * sliceHeight;
-        const lineH = Math.max(1, Math.ceil(sliceHeight));
-        ctx.fillRect(0, y, w, lineH);
-      }
-      return;
-    }
+		const LINE_COLORS = minimapLineColors();
+		const left        = this.leftLines;
+		const right       = this.rightLines;
+		const fallback    = this.lines;
+		const useDual     = left.length > 0 || right.length > 0;
 
-    const rowCount = Math.max(left.length, right.length);
-    if (rowCount === 0) return;
+		if (!useDual) {
+			if (!fallback.length) {
+				return;
+			}
+			const sliceHeight = h / fallback.length;
+			for (let i = 0; i < fallback.length; i++) {
+				const color = LINE_COLORS[fallback[i].type];
+				if (!color) {
+					continue;
+				}
+				ctx.fillStyle = color;
+				const y       = i * sliceHeight;
+				const lineH   = Math.max(1, Math.ceil(sliceHeight));
+				ctx.fillRect(0, y, w, lineH);
+			}
+			return;
+		}
 
-    const sliceHeight = h / rowCount;
-    const half = Math.floor(w / 2);
-    const rightW = w - half;
+		const rowCount = Math.max(left.length, right.length);
+		if (rowCount === 0) {
+			return;
+		}
 
-    for (let i = 0; i < rowCount; i++) {
-      const y = i * sliceHeight;
-      const lineH = Math.max(1, Math.ceil(sliceHeight));
-      if (i < left.length) {
-        const color = LINE_COLORS[left[i].type];
-        if (color) {
-          ctx.fillStyle = color;
-          ctx.fillRect(0, y, half, lineH);
-        }
-      }
-      if (i < right.length) {
-        const color = LINE_COLORS[right[i].type];
-        if (color) {
-          ctx.fillStyle = color;
-          ctx.fillRect(half, y, rightW, lineH);
-        }
-      }
-    }
+		const sliceHeight = h / rowCount;
+		const half        = Math.floor(w / 2);
+		const rightW      = w - half;
 
-    const neutral = getComputedStyle(document.documentElement)
-      .getPropertyValue('--diff-minimap-neutral')
-      .trim() || 'rgba(139, 148, 158, 0.35)';
-    ctx.strokeStyle = neutral;
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(half + 0.5, 0);
-    ctx.lineTo(half + 0.5, h);
-    ctx.stroke();
-  }
+		for (let i = 0; i < rowCount; i++) {
+			const y     = i * sliceHeight;
+			const lineH = Math.max(1, Math.ceil(sliceHeight));
+			if (i < left.length) {
+				const color = LINE_COLORS[left[i].type];
+				if (color) {
+					ctx.fillStyle = color;
+					ctx.fillRect(0, y, half, lineH);
+				}
+			}
+			if (i < right.length) {
+				const color = LINE_COLORS[right[i].type];
+				if (color) {
+					ctx.fillStyle = color;
+					ctx.fillRect(half, y, rightW, lineH);
+				}
+			}
+		}
 
-  onMouseMove(e: MouseEvent) {
-    if (this.dragging) return;
-    const rect = (this.$refs.container as HTMLElement).getBoundingClientRect();
-    this.hoverY = Math.max(0, Math.min(rect.height - this.viewportIndicatorHeight, e.clientY - rect.top - this.viewportIndicatorHeight / 2));
-  }
+		const neutral = getComputedStyle(document.documentElement)
+			.getPropertyValue('--diff-minimap-neutral')
+			.trim() || 'rgba(139, 148, 158, 0.35)';
+		ctx.strokeStyle = neutral;
+		ctx.lineWidth   = 1;
+		ctx.beginPath();
+		ctx.moveTo(half + 0.5, 0);
+		ctx.lineTo(half + 0.5, h);
+		ctx.stroke();
+	}
 
-  onMouseDown(e: MouseEvent) {
-    e.preventDefault();
-    this.dragging = true;
-    this.hoverY = -1;
-    this.emitScrollFromEvent(e);
-    document.addEventListener('mousemove', this._onDragMove);
-    document.addEventListener('mouseup', this._onDragEnd);
-  }
+	onMouseMove(e: MouseEvent) {
+		if (this.dragging) {
+			return;
+		}
+		const rect  = (this.$refs.container as HTMLElement).getBoundingClientRect();
+		this.hoverY = Math.max(0, Math.min(rect.height - this.viewportIndicatorHeight, e.clientY - rect.top - this.viewportIndicatorHeight / 2));
+	}
 
-  private _onDragMove = (e: MouseEvent) => {
-    if (!this.dragging) return;
-    this.emitScrollFromEvent(e);
-  };
+	onMouseDown(e: MouseEvent) {
+		e.preventDefault();
+		this.dragging = true;
+		this.hoverY   = -1;
+		this.emitScrollFromEvent(e);
+		document.addEventListener('mousemove', this._onDragMove);
+		document.addEventListener('mouseup', this._onDragEnd);
+	}
 
-  private _onDragEnd = () => {
-    this.dragging = false;
-    document.removeEventListener('mousemove', this._onDragMove);
-    document.removeEventListener('mouseup', this._onDragEnd);
-  };
+	private _onDragMove = (e: MouseEvent) => {
+		if (!this.dragging) {
+			return;
+		}
+		this.emitScrollFromEvent(e);
+	};
 
-  emitScrollFromEvent(e: MouseEvent) {
-    const container = this.$refs.container as HTMLElement;
-    if (!container) return;
-    const rect = container.getBoundingClientRect();
-    const y = e.clientY - rect.top - this.viewportIndicatorHeight / 2;
-    const maxY = rect.height - this.viewportIndicatorHeight;
-    const fraction = Math.max(0, Math.min(1, y / maxY));
-    this.$emit('scroll-to', fraction);
-  }
+	private _onDragEnd = () => {
+		this.dragging = false;
+		document.removeEventListener('mousemove', this._onDragMove);
+		document.removeEventListener('mouseup', this._onDragEnd);
+	};
+
+	emitScrollFromEvent(e: MouseEvent) {
+		const container = this.$refs.container as HTMLElement;
+		if (!container) {
+			return;
+		}
+		const rect     = container.getBoundingClientRect();
+		const y        = e.clientY - rect.top - this.viewportIndicatorHeight / 2;
+		const maxY     = rect.height - this.viewportIndicatorHeight;
+		const fraction = Math.max(0, Math.min(1, y / maxY));
+		this.$emit('scroll-to', fraction);
+	}
+
 }
 </script>
 
 <style>
 .diff-minimap {
   width: 26px;
-  flex-shrink: 0;
-  position: relative;
-  cursor: pointer;
   background: var(--bg-primary);
   border-left: 1px solid var(--border);
-  overflow: hidden;
 }
 
 .diff-minimap canvas {

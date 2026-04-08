@@ -1,28 +1,31 @@
-import { createApp } from 'vue';
-import { initColorScheme } from './lib/colorScheme';
-import { migrateHljsThemeStorage } from './lib/hljsTheme';
-import AppShell from './AppShell.vue';
-import router from './router';
-import { iconSvg } from './lib/icons';
 import './assets/dashboard.css';
+import './assets/utilities.css';
+
+import { createApp } from 'vue';
+
+import AppShell                    from './AppShell.vue';
+import { initColorScheme }         from './lib/colorScheme';
+import { migrateHljsThemeStorage } from './lib/hljsTheme';
+import { iconSvg }                 from './lib/icons';
+import router                      from './router';
 
 initColorScheme();
 migrateHljsThemeStorage();
 
-import AppHeader from './components/AppHeader.vue';
-import AuthScreen from './components/AuthScreen.vue';
-import CreatePrSection from './components/CreatePrSection.vue';
-import DeviceScreen from './components/DeviceScreen.vue';
-import ErrorScreen from './components/ErrorScreen.vue';
-import LoadingScreen from './components/LoadingScreen.vue';
-import PrBoard from './components/PrBoard.vue';
-import PrColumn from './components/PrColumn.vue';
-import PrItem from './components/PrItem.vue';
-import RateLimitBanner from './components/RateLimitBanner.vue';
-import PrOverviewTab from './views/PrOverviewTab.vue';
-import PrFilesTab from './views/PrFilesTab.vue';
-import CommentPopover from './components/CommentPopover.vue';
 import AppearanceSelect from './components/AppearanceSelect.vue';
+import AppHeader        from './components/AppHeader.vue';
+import AuthScreen       from './components/AuthScreen.vue';
+import CommentPopover   from './components/CommentPopover.vue';
+import CreatePrSection  from './components/CreatePrSection.vue';
+import DeviceScreen     from './components/DeviceScreen.vue';
+import ErrorScreen      from './components/ErrorScreen.vue';
+import LoadingScreen    from './components/LoadingScreen.vue';
+import PrBoard          from './components/PrBoard.vue';
+import PrColumn         from './components/PrColumn.vue';
+import PrItem           from './components/PrItem.vue';
+import RateLimitBanner  from './components/RateLimitBanner.vue';
+import PrFilesTab       from './views/PrFilesTab.vue';
+import PrOverviewTab    from './views/PrOverviewTab.vue';
 
 const app = createApp(AppShell);
 

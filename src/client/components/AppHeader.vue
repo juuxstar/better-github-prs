@@ -1,35 +1,58 @@
 <template>
-  <header class="header">
-    <div class="header-left">
-      <span class="logo" v-html="$icon('github', 24)"></span>
-      <h1 class="title">PR Dashboard</h1>
-      <select class="repo-select" :value="currentRepo" @change="onRepoChange">
+  <header
+    class="header u-flex u-items-center u-justify-between u-py-3-5 u-px-6 u-flex-shrink-0 u-sticky u-top-0 u-z-100"
+  >
+    <div class="header-left u-flex u-items-center u-gap-3">
+      <span class="logo u-text-primary" v-html="$icon('github', 24)"></span>
+      <h1 class="title u-m-0 u-fs-18 u-fw-600 u-text-primary">PR Dashboard</h1>
+      <select
+        class="repo-select u-fs-13 u-truncate u-ml-4"
+        :value="currentRepo"
+        @change="onRepoChange"
+      >
         <option value="">All repositories</option>
         <option v-for="repo in repos" :key="repo" :value="repo">{{ repo }}</option>
       </select>
-      <div class="type-filters">
-        <button :class="['type-filter-btn', { active: currentTypeFilter === 'ready' }]" @click="$emit('set-type-filter', 'ready')">Ready</button>
-        <button :class="['type-filter-btn', { active: currentTypeFilter === 'draft' }]" @click="$emit('set-type-filter', 'draft')">Draft</button>
+      <div class="type-filters u-flex u-items-center u-gap-0-5 u-ml-4 u-p-0-5">
+        <button
+          class="type-filter-btn"
+          :class="{ active : currentTypeFilter === 'ready' }"
+          @click="$emit('set-type-filter', 'ready')"
+        >
+          Ready
+        </button>
+        <button
+          class="type-filter-btn"
+          :class="{ active : currentTypeFilter === 'draft' }"
+          @click="$emit('set-type-filter', 'draft')"
+        >
+          Draft
+        </button>
       </div>
       <button
         v-if="user"
-        :class="['btn-refresh', { spinning: refreshing }]"
+        class="btn-refresh u-flex u-items-center u-justify-center u-ml-2"
+        :class="{ spinning : refreshing }"
         title="Refresh"
         @click="$emit('refresh')"
         v-html="refreshBtnHtml"
       ></button>
     </div>
-    <div class="header-right">
+    <div class="header-right u-flex u-items-center u-gap-3">
       <appearance-select class="header-appearance" />
-      <select class="repo-select" :value="selectedTeam" @change="onTeamChange">
+      <select
+        class="repo-select u-fs-13 u-truncate"
+        :value="selectedTeam"
+        @change="onTeamChange"
+      >
         <option value="alpha">Alpha Team</option>
         <option value="beta">Beta Team</option>
         <option value="gamma">Gamma Team</option>
       </select>
       <template v-if="user">
-        <div class="user-info">
+        <div class="user-info u-flex u-items-center u-gap-2-5">
           <img class="avatar" :src="user.avatar_url" :alt="user.login">
-          <span class="username">{{ user.login }}</span>
+          <span class="username u-fs-14 u-fw-500 u-text-secondary">{{ user.login }}</span>
         </div>
         <button class="btn-logout" @click="$emit('logout')">Sign out</button>
       </template>
@@ -38,71 +61,52 @@
 </template>
 
 <script lang="ts">
-import { Component, Prop, Vue } from 'vue-facing-decorator';
 import { iconSvg } from '@/lib/icons';
 
+import { Component, Prop, Vue } from 'vue-facing-decorator';
+
 /** Top navigation bar with repo/team selectors, type filters, refresh, and user info. */
-@Component({ emits: ['set-type-filter', 'set-repo', 'set-team', 'refresh', 'logout'] })
+@Component({ emits : [ 'set-type-filter', 'set-repo', 'set-team', 'refresh', 'logout' ] })
 export default class AppHeader extends Vue {
-  @Prop() user!: Record<string, unknown> | null;
-  @Prop() repos!: string[];
-  @Prop() currentRepo!: string;
-  @Prop() currentTypeFilter!: string;
-  @Prop() selectedTeam!: string;
-  @Prop() refreshing!: boolean;
 
-  get refreshBtnHtml(): string {
-    return iconSvg('refresh', 14);
-  }
+	@Prop({ required : true }) readonly user!: Record<string, unknown> | null;
+	@Prop({ required : true }) readonly repos!: string[];
+	@Prop({ required : true }) readonly currentRepo!: string;
+	@Prop({ required : true }) readonly currentTypeFilter!: string;
+	@Prop({ required : true }) readonly selectedTeam!: string;
+	@Prop({ required : true }) readonly refreshing!: boolean;
 
-  onRepoChange(e: Event) {
-    this.$emit('set-repo', (e.target as HTMLSelectElement).value);
-  }
+	get refreshBtnHtml(): string {
+		return iconSvg('refresh', 14);
+	}
 
-  onTeamChange(e: Event) {
-    this.$emit('set-team', (e.target as HTMLSelectElement).value);
-  }
+	onRepoChange(e: Event) {
+		this.$emit('set-repo', (e.target as HTMLSelectElement).value);
+	}
+
+	onTeamChange(e: Event) {
+		this.$emit('set-team', (e.target as HTMLSelectElement).value);
+	}
+
 }
 </script>
 
 <style>
 .header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 24px;
   background: var(--bg-secondary);
   border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
-  position: sticky;
-  top: 0;
-  z-index: 100;
 }
 
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.logo {
-  color: var(--text-primary);
-}
-
-.title {
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--text-primary);
+html[data-color-scheme="light"] .header {
+  background: #e4e7ec;
 }
 
 .repo-select {
-  margin-left: 16px;
   padding: 5px 28px 5px 10px;
   background: var(--bg-primary);
   color: var(--text-secondary);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  font-size: 13px;
   font-family: inherit;
   cursor: pointer;
   appearance: none;
@@ -110,9 +114,6 @@ export default class AppHeader extends Vue {
   background-repeat: no-repeat;
   background-position: right 8px center;
   max-width: 240px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   transition: all var(--transition);
 }
 
@@ -133,24 +134,19 @@ export default class AppHeader extends Vue {
 }
 
 .type-filters {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  margin-left: 16px;
   background: var(--bg-primary);
   border-radius: var(--radius-sm);
-  padding: 2px;
   border: 1px solid var(--border);
 }
 
 .type-filter-btn {
-  padding: 4px 12px;
+  padding: var(--u-1) var(--u-3);
   border: none;
   background: transparent;
   color: var(--text-tertiary);
   font-size: 12px;
   font-weight: 500;
-  border-radius: 4px;
+  border-radius: var(--u-1);
   cursor: pointer;
   transition: all var(--transition);
   font-family: inherit;
@@ -165,29 +161,11 @@ export default class AppHeader extends Vue {
   background: var(--bg-tertiary);
 }
 
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.user-info {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
 .avatar {
   width: 32px;
   height: 32px;
   border-radius: 50%;
   border: 2px solid var(--border);
-}
-
-.username {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text-secondary);
 }
 
 .btn-logout {
@@ -216,11 +194,7 @@ export default class AppHeader extends Vue {
   height: 32px;
   border-radius: var(--radius-sm);
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   transition: all var(--transition);
-  margin-left: 8px;
 }
 
 .btn-refresh:hover {

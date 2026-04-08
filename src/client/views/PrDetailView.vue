@@ -1,48 +1,86 @@
 <template>
-  <div class="pr-detail-page">
-    <div v-if="loading" class="pr-detail-loading">
+  <div class="pr-detail-page u-flex u-flex-col u-overflow-hidden">
+    <div
+      v-if="loading"
+      class="pr-detail-loading u-flex u-flex-col u-items-center u-justify-center u-gap-4 u-py-20 u-text-secondary"
+    >
       <div class="spinner"></div>
-      <p>Loading pull request...</p>
+      <p class="u-m-0">Loading pull request...</p>
     </div>
 
-    <div v-else-if="error" class="pr-detail-error">
-      <p>{{ error }}</p>
+    <div
+      v-else-if="error"
+      class="pr-detail-error u-flex u-flex-col u-items-center u-justify-center u-gap-4 u-py-20 u-text-secondary"
+    >
+      <p class="u-m-0">{{ error }}</p>
       <button class="btn btn-secondary" @click="loadAll">Retry</button>
     </div>
 
     <template v-else-if="pr">
-      <div class="pr-detail-main">
-      <header class="pr-detail-header">
-        <div class="pr-detail-header-left">
-          <a href="/" class="pr-detail-back" title="Back to dashboard">&larr;</a>
-          <span :class="stateBadgeClass">{{ prStatusBadgeText }}</span>
-          <h1 class="pr-detail-title">{{ pr.title }}</h1>
-          <span class="pr-detail-author">
+      <div class="pr-detail-main u-flex u-flex-col u-flex-1 u-min-h-0 u-overflow-hidden">
+      <header
+        class="pr-detail-header u-flex u-items-center u-justify-between u-py-2-5 u-px-4 u-flex-shrink-0 u-sticky u-top-0 u-z-100 u-gap-4"
+      >
+        <div class="pr-detail-header-left u-flex u-items-center u-gap-2-5 u-min-w-0 u-flex-1">
+          <a href="/" class="pr-detail-back u-flex-shrink-0" title="Back to dashboard">&larr;</a>
+          <span
+            class="pr-detail-badge u-flex-shrink-0"
+            :class="{
+              'pr-detail-badge-draft'  : pr.draft,
+              'pr-detail-badge-merged' : !pr.draft && pr.merged,
+              'pr-detail-badge-closed' : !pr.draft && !pr.merged && pr.state === 'closed',
+              'pr-detail-badge-open'   : !pr.draft && !pr.merged && pr.state === 'open',
+            }"
+          >{{ prStatusBadgeText }}</span>
+          <h1 class="pr-detail-title u-min-w-0 u-flex-grow-1 u-fs-15 u-fw-600 u-text-primary u-truncate u-m-0">
+            {{ pr.title }}
+          </h1>
+          <span class="pr-detail-author u-flex u-items-center u-gap-1-5 u-fs-13 u-text-secondary u-whitespace-nowrap u-flex-shrink-0">
             <img v-if="pr.user.avatar_url" :src="pr.user.avatar_url" class="pr-detail-avatar" />
             {{ authorDisplayName }}
           </span>
         </div>
-        <div class="pr-detail-header-center">
-          <div class="pr-detail-tabs">
+        <div class="pr-detail-header-center u-flex u-items-center u-justify-center u-flex-1">
+          <div class="pr-detail-tabs u-flex u-items-center u-gap-0-5 u-p-0-5">
             <button
-              :class="['pr-detail-tab', { active: activeTab === 'overview' }]"
+              class="pr-detail-tab"
+              :class="{ active : activeTab === 'overview' }"
               @click="switchTab('overview')"
             >
               Overview
             </button>
             <button
-              :class="['pr-detail-tab', { active: activeTab === 'files' }]"
+              class="pr-detail-tab"
+              :class="{ active : activeTab === 'files' }"
               @click="switchTab('files')"
             >
               Files ({{ pr.changed_files }})
             </button>
           </div>
-          <span v-if="files.length" :class="reviewProgressClass">
+          <span
+            v-if="files.length"
+            class="pr-detail-review-progress u-flex u-items-center u-gap-2 u-ml-3 u-whitespace-nowrap"
+            :class="{
+              complete : reviewPct >= 100,
+              partial  : reviewPct >= 50 && reviewPct < 100,
+              low      : reviewPct < 50,
+            }"
+          >
             <span class="pr-detail-review-bar-track">
-              <span class="pr-detail-review-bar-fill" :style="{ width: reviewPct + '%' }"></span>
+              <span class="pr-detail-review-bar-fill" :style="{ width : reviewPct + '%' }"></span>
             </span>
             <span class="pr-detail-review-pct">{{ reviewPct }}%</span>
           </span>
+          <button
+            v-if="showMarkWhitespaceViewedButton"
+            type="button"
+            class="pr-whitespace-viewed-btn has-tooltip"
+            data-tooltip="Mark unviewed files whose patch changes only whitespace as viewed on GitHub (same as the Files tab checkbox).&#10;Skips files without a patch or with uneven diff blocks."
+            :disabled="markingWhitespaceViewed"
+            @click="openWhitespaceViewedConfirm"
+          >
+            Whitespace&rarr;viewed ({{ whitespaceOnlyUnviewedCount }})
+          </button>
           <button
             v-if="activeTab === 'overview' && showMergePrButton"
             class="pr-merge-btn has-tooltip"
@@ -63,7 +101,7 @@
             <template v-else>&#10003; Approve</template>
           </button>
         </div>
-        <div class="pr-detail-header-right">
+        <div class="pr-detail-header-right u-flex u-items-center u-gap-3 u-flex-1 u-justify-end">
           <template v-if="pendingComments.length">
             <button class="pr-review-discard-btn" @click="discardAllPending" title="Discard all pending comments">&times;</button>
             <button
@@ -111,7 +149,7 @@
         </div>
       </header>
 
-      <div class="pr-detail-tab-shell">
+      <div class="pr-detail-tab-shell u-flex u-flex-col u-flex-1 u-min-h-0 u-overflow-hidden">
       <pr-overview-tab
         v-if="activeTab === 'overview'"
         :pr="pr"
@@ -157,7 +195,7 @@
       <Teleport to="body">
         <div
           v-if="mergeConfirmOpen && pr"
-          class="pr-merge-confirm-backdrop"
+          class="pr-merge-confirm-backdrop u-fixed u-inset-0 u-z-modal u-flex u-items-center u-justify-center u-p-6"
           @click.self="closeMergeConfirm"
         >
           <div
@@ -174,7 +212,7 @@
               <strong>{{ pr.base.ref }}</strong>.
             </p>
             <p v-if="mergeConfirmError" class="pr-merge-confirm-error">{{ mergeConfirmError }}</p>
-            <div class="pr-merge-confirm-actions">
+            <div class="pr-merge-confirm-actions u-flex u-justify-end u-gap-2-5 u-flex-wrap">
               <button
                 type="button"
                 class="btn btn-secondary"
@@ -195,416 +233,613 @@
             </div>
           </div>
         </div>
+        <div
+          v-if="whitespaceViewedConfirmOpen && pr"
+          class="pr-merge-confirm-backdrop u-fixed u-inset-0 u-z-modal u-flex u-items-center u-justify-center u-p-6"
+          @click.self="closeWhitespaceViewedConfirm"
+        >
+          <div
+            class="pr-merge-confirm-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="pr-whitespace-viewed-confirm-title"
+          >
+            <h2 id="pr-whitespace-viewed-confirm-title" class="pr-merge-confirm-title">Mark whitespace-only files as viewed?</h2>
+            <p class="pr-merge-confirm-body">
+              This will mark <strong>{{ whitespaceOnlyUnviewedCount }}</strong> unviewed file(s) as viewed on GitHub.
+            </p>
+            <p class="pr-merge-confirm-body">
+              Only files with a patch where every removed/added line pair differs by whitespace are included (modified or renamed; no patch, binary, or uneven blocks are skipped).
+            </p>
+            <p v-if="whitespaceViewedConfirmError" class="pr-merge-confirm-error">{{ whitespaceViewedConfirmError }}</p>
+            <div class="pr-merge-confirm-actions u-flex u-justify-end u-gap-2-5 u-flex-wrap">
+              <button
+                type="button"
+                class="btn btn-secondary"
+                :disabled="markingWhitespaceViewed"
+                @click="closeWhitespaceViewedConfirm"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                class="btn pr-merge-confirm-submit"
+                :disabled="markingWhitespaceViewed"
+                @click="confirmMarkWhitespaceViewedFiles"
+              >
+                <span v-if="markingWhitespaceViewed" class="async-loader"></span>
+                <template v-else>Mark {{ whitespaceOnlyUnviewedCount }} as viewed</template>
+              </button>
+            </div>
+          </div>
+        </div>
       </Teleport>
     </template>
   </div>
 </template>
 
 <script lang="ts">
-import { Component, Prop, Vue, Watch } from 'vue-facing-decorator';
-import GitHubClient from '@/lib/githubClient';
-import type { CheckRunDetail, RepoLabel, PRFile, ReviewComment, PendingComment, IssueComment } from '@/lib/githubClient';
-import { getStoredToken } from '@/services/auth';
-import { timeAgo } from '@/lib/utils';
 import type { ResolvedScheme } from '@/lib/colorScheme';
 import { getResolvedScheme, subscribeColorScheme } from '@/lib/colorScheme';
+import type { CheckRunDetail, IssueComment, PendingComment, PRFile, RepoLabel, ReviewComment } from '@/lib/githubClient';
+import GitHubClient            from '@/lib/githubClient';
 import {
-  hljsThemesForResolvedScheme,
-  getStoredHljsThemeId,
-  setStoredHljsThemeId,
-  loadHljsTheme,
+	getStoredHljsThemeId,
+	hljsThemesForResolvedScheme,
+	loadHljsTheme,
+	setStoredHljsThemeId
 } from '@/lib/hljsTheme';
+import { isWhitespaceOnlyFileChange }           from '@/lib/patchDiff';
+import { loadPendingReview, savePendingReview } from '@/lib/pendingReviewStorage';
+import { timeAgo }                              from '@/lib/utils';
+import { getStoredToken }                       from '@/services/auth';
 
-@Component({ emits: ['update:fileIndex'] })
+import { Component, Prop, Vue, Watch } from 'vue-facing-decorator';
+
+@Component({ emits : [ 'update:fileIndex' ] })
 export default class PrDetailView extends Vue {
-  @Prop() owner!: string;
-  @Prop() repo!: string;
-  @Prop() number!: string;
-  @Prop() tab!: string;
 
-  pr: any = null;
-  checks: CheckRunDetail[] = [];
-  repoLabels: RepoLabel[] = [];
-  files: PRFile[] = [];
-  loading = true;
-  checksLoading = true;
-  filesLoading = false;
-  error = '';
-  activeTab: 'overview' | 'files' = 'overview';
-  tabSize = parseInt(localStorage.getItem('diffTabSize') || '4', 10);
-  diffFontSize = (() => {
-    const raw = localStorage.getItem('diffFontSize');
-    const n = raw ? parseInt(raw, 10) : 12;
-    return [11, 12, 13, 14, 16].includes(n) ? n : 12;
-  })();
-  readonly diffFontSizePresets = [
-    { value: 11, label: 'x-small' },
-    { value: 12, label: 'small' },
-    { value: 13, label: 'medium' },
-    { value: 14, label: 'large' },
-    { value: 16, label: 'x-large' },
-  ] as const;
-  resolvedScheme: ResolvedScheme = getResolvedScheme();
-  hljsTheme = getStoredHljsThemeId(getResolvedScheme());
-  viewedFiles: Record<string, string> = {};
-  prNodeId = '';
-  reviewComments: ReviewComment[] = [];
-  issueComments: IssueComment[] = [];
-  reviewCommentsLoading = false;
-  pendingComments: PendingComment[] = [];
-  submittingReview = false;
-  approvingPr = false;
-  mergingPr = false;
-  mergeConfirmOpen = false;
-  mergeConfirmError = '';
-  reviewDecision: 'APPROVED' | 'CHANGES_REQUESTED' | 'REVIEW_REQUIRED' | null = null;
+	@Prop({ required : true }) readonly owner!: string;
+	@Prop({ required : true }) readonly repo!: string;
+	@Prop({ required : true }) readonly number!: string;
+	@Prop({ required : true }) readonly tab!: string;
 
-  @Watch('tabSize')
-  onTabSizeChanged(val: number) {
-    localStorage.setItem('diffTabSize', String(val));
-  }
+	pr: any = null;
+	checks: CheckRunDetail[] = [];
+	repoLabels: RepoLabel[] = [];
+	files: PRFile[] = [];
+	loading = true;
+	checksLoading = true;
+	filesLoading = false;
+	error = '';
+	activeTab: 'overview' | 'files' = 'overview';
+	tabSize = parseInt(localStorage.getItem('diffTabSize') || '4', 10);
+	diffFontSize = (() => {
+		const raw = localStorage.getItem('diffFontSize');
+		const n   = raw ? parseInt(raw, 10) : 12;
+		return [ 11, 12, 13, 14, 16 ].includes(n) ? n : 12;
+	})();
+	readonly diffFontSizePresets = [
+		{ value : 11, label : 'x-small' },
+		{ value : 12, label : 'small' },
+		{ value : 13, label : 'medium' },
+		{ value : 14, label : 'large' },
+		{ value : 16, label : 'x-large' },
+	] as const;
+	resolvedScheme: ResolvedScheme = getResolvedScheme();
+	hljsTheme = getStoredHljsThemeId(getResolvedScheme());
+	viewedFiles: Record<string, string> = {};
+	prNodeId = '';
+	reviewComments: ReviewComment[] = [];
+	issueComments: IssueComment[] = [];
+	reviewCommentsLoading = false;
+	pendingComments: PendingComment[] = [];
+	submittingReview = false;
+	approvingPr = false;
+	mergingPr = false;
+	mergeConfirmOpen = false;
+	mergeConfirmError = '';
+	whitespaceViewedConfirmOpen = false;
+	whitespaceViewedConfirmError = '';
+	markingWhitespaceViewed = false;
+	reviewDecision: 'APPROVED' | 'CHANGES_REQUESTED' | 'REVIEW_REQUIRED' | null = null;
 
-  @Watch('diffFontSize')
-  onDiffFontSizeChanged(val: number) {
-    localStorage.setItem('diffFontSize', String(val));
-  }
+	@Watch('tabSize')
+	onTabSizeChanged(val: number) {
+		localStorage.setItem('diffTabSize', String(val));
+	}
 
-  @Watch('hljsTheme')
-  onHljsThemeChanged(val: string) {
-    setStoredHljsThemeId(this.resolvedScheme, val);
-    loadHljsTheme(val);
-  }
+	@Watch('diffFontSize')
+	onDiffFontSizeChanged(val: number) {
+		localStorage.setItem('diffFontSize', String(val));
+	}
 
-  get hljsThemesFiltered() {
-    return hljsThemesForResolvedScheme(this.resolvedScheme);
-  }
+	@Watch('hljsTheme')
+	onHljsThemeChanged(val: string) {
+		setStoredHljsThemeId(this.resolvedScheme, val);
+		loadHljsTheme(val);
+	}
 
-  readonly timeAgo = timeAgo;
+	/** Stable key for SPA navigation between PRs (owner/repo/number only). */
+	get prRouteKey(): string {
+		return `${this.owner}/${this.repo}/${this.number}`;
+	}
 
-  private _checksTimer: ReturnType<typeof setInterval> | null = null;
-  private _unsubColorScheme: (() => void) | null = null;
-  private _originalTitle = '';
+	@Watch('prRouteKey')
+	onPrRouteKeyChanged(_newKey: string, oldKey: string | undefined) {
+		if (oldKey === undefined) {
+			return;
+		}
+		const parts = oldKey.split('/');
+		if (parts.length !== 3) {
+			return;
+		}
+		const [ o, r, nStr ] = parts;
+		const n              = parseInt(nStr, 10);
+		if (!Number.isFinite(n)) {
+			return;
+		}
+		const head = this.pr?.head?.sha;
+		if (head) {
+			savePendingReview(o, r, n, head, this.pendingComments);
+		}
+		this.pendingComments = [];
+		void this.loadAll();
+	}
 
-  get prNumber(): number {
-    return parseInt(this.number, 10);
-  }
+	get hljsThemesFiltered() {
+		return hljsThemesForResolvedScheme(this.resolvedScheme);
+	}
 
-  get stateBadgeClass(): string {
-    if (!this.pr) return 'pr-detail-badge';
-    if (this.pr.draft) return 'pr-detail-badge pr-detail-badge-draft';
-    if (this.pr.merged) return 'pr-detail-badge pr-detail-badge-merged';
-    if (this.pr.state === 'closed') return 'pr-detail-badge pr-detail-badge-closed';
-    return 'pr-detail-badge pr-detail-badge-open';
-  }
+	readonly timeAgo = timeAgo;
 
-  /** Header badge: open PRs show # only; draft / merged / closed add an explicit status. */
-  get prStatusBadgeText(): string {
-    if (!this.pr) return '';
-    const n = this.pr.number;
-    if (this.pr.draft) return `#${n} · Draft`;
-    if (this.pr.merged) return `#${n} · Merged`;
-    if (this.pr.state === 'closed') return `#${n} · Closed`;
-    return `#${n}`;
-  }
+	private _checksTimer: ReturnType<typeof setInterval> | null = null;
+	private _unsubColorScheme: (() => void) | null = null;
+	private _originalTitle = '';
 
-  get authorDisplayName(): string {
-    if (!this.pr?.user?.login) return '';
-    return GitHubClient.getFirstName(this.pr.user.login);
-  }
+	get prNumber(): number {
+		return parseInt(this.number, 10);
+	}
 
-  get initialFileIndex(): number {
-    const q = this.$route.query.file;
-    const idx = typeof q === 'string' ? parseInt(q, 10) : NaN;
-    return isNaN(idx) ? 0 : idx;
-  }
+	/** Header badge: open PRs show # only; draft / merged / closed add an explicit status. */
+	get prStatusBadgeText(): string {
+		if (!this.pr) {
+			return '';
+		}
+		const n = this.pr.number;
+		if (this.pr.draft) {
+			return `#${n} · Draft`;
+		}
+		if (this.pr.merged) {
+			return `#${n} · Merged`;
+		}
+		if (this.pr.state === 'closed') {
+			return `#${n} · Closed`;
+		}
+		return `#${n}`;
+	}
 
-  get reviewedCount(): number {
-    return Object.values(this.viewedFiles).filter(s => s === 'VIEWED').length;
-  }
+	get authorDisplayName(): string {
+		if (!this.pr?.user?.login) {
+			return '';
+		}
+		return GitHubClient.getFirstName(this.pr.user.login);
+	}
 
-  get reviewPct(): number {
-    const total = this.files.length;
-    if (!total) return 0;
-    return Math.round((this.reviewedCount / total) * 100);
-  }
+	get initialFileIndex(): number {
+		const q   = this.$route.query.file;
+		const idx = typeof q === 'string' ? parseInt(q, 10) : NaN;
+		return isNaN(idx) ? 0 : idx;
+	}
 
-  get reviewProgressClass(): string {
-    const pct = this.reviewPct;
-    if (pct >= 100) return 'pr-detail-review-progress complete';
-    if (pct >= 50) return 'pr-detail-review-progress partial';
-    return 'pr-detail-review-progress low';
-  }
+	get reviewedCount(): number {
+		return Object.values(this.viewedFiles).filter(s => s === 'VIEWED').length;
+	}
 
-  get showMergePrButton(): boolean {
-    if (!this.pr) return false;
-    if (this.pr.draft || this.pr.state !== 'open' || this.pr.merged) return false;
-    return this.reviewDecision === 'APPROVED';
-  }
+	get reviewPct(): number {
+		const total = this.files.length;
+		if (!total) {
+			return 0;
+		}
+		return Math.round((this.reviewedCount / total) * 100);
+	}
 
-  /** Approve in header only on Files tab, same slot as Merge PR on Overview. */
-  get showApproveInHeader(): boolean {
-    if (this.activeTab !== 'files') return false;
-    if (!this.files.length) return false;
-    return this.reviewPct >= 100 && this.reviewDecision !== 'APPROVED';
-  }
+	get whitespaceOnlyUnviewedFiles(): PRFile[] {
+		return this.files.filter(
+			f => isWhitespaceOnlyFileChange(f) && this.viewedFiles[f.filename] !== 'VIEWED'
+		);
+	}
 
-  mounted() {
-    this._originalTitle = document.title;
-    if (this.tab === 'files') {
-      this.activeTab = 'files';
-    }
-    const token = getStoredToken();
-    if (token) GitHubClient.setToken(token);
-    this.resolvedScheme = getResolvedScheme();
-    this.hljsTheme = getStoredHljsThemeId(this.resolvedScheme);
-    loadHljsTheme(this.hljsTheme);
-    this._unsubColorScheme = subscribeColorScheme(() => {
-      const next = getResolvedScheme();
-      this.resolvedScheme = next;
-      this.hljsTheme = getStoredHljsThemeId(next);
-      loadHljsTheme(this.hljsTheme);
-    });
-    this.loadAll();
-  }
+	get whitespaceOnlyUnviewedCount(): number {
+		return this.whitespaceOnlyUnviewedFiles.length;
+	}
 
-  beforeUnmount() {
-    this.stopChecksPolling();
-    this._unsubColorScheme?.();
-    this._unsubColorScheme = null;
-    document.title = this._originalTitle;
-  }
+	get showMarkWhitespaceViewedButton(): boolean {
+		return Boolean(this.files.length && this.prNodeId && this.whitespaceOnlyUnviewedCount > 0);
+	}
 
-  async loadAll() {
-    this.loading = true;
-    this.error = '';
-    try {
-      const [pr, decision] = await Promise.all([
-        GitHubClient.fetchPRDetail(this.owner, this.repo, this.prNumber),
-        GitHubClient.fetchPullRequestReviewDecision(this.owner, this.repo, this.prNumber),
-      ]);
-      this.pr = pr;
-      this.reviewDecision = decision;
-      document.title = `#${this.pr.number} ${this.pr.title}`;
-      if (pr.user?.login) {
-        await GitHubClient.fetchUserFirstNames([pr.user.login]);
-      }
-      this.loading = false;
-      this.loadChecks();
-      this.loadRepoLabels();
-      this.loadReviewComments();
-      if (this.activeTab === 'files') this.loadFiles();
-    } catch (e: any) {
-      this.error = e.message || 'Failed to load PR';
-      this.loading = false;
-    }
-  }
+	get showMergePrButton(): boolean {
+		if (!this.pr) {
+			return false;
+		}
+		if (this.pr.draft || this.pr.state !== 'open' || this.pr.merged) {
+			return false;
+		}
+		return this.reviewDecision === 'APPROVED';
+	}
 
-  async loadChecks() {
-    this.checksLoading = true;
-    try {
-      this.checks = await GitHubClient.fetchDetailedChecks(this.owner, this.repo, this.prNumber);
-      const hasPending = this.checks.some(check => {
-        const passed = [ 'success', 'neutral', 'skipped' ].includes(check.conclusion ?? '');
-        const failed = [ 'failure', 'timed_out', 'cancelled', 'error' ].includes(check.conclusion ?? '');
-        return !passed && !failed;
-      });
-      if (hasPending) this.startChecksPolling();
-    } catch {
-      this.checks = [];
-    } finally {
-      this.checksLoading = false;
-    }
-  }
+	/** Approve in header only on Files tab, same slot as Merge PR on Overview. */
+	get showApproveInHeader(): boolean {
+		if (this.activeTab !== 'files') {
+			return false;
+		}
+		if (!this.files.length) {
+			return false;
+		}
+		return this.reviewPct >= 100 && this.reviewDecision !== 'APPROVED';
+	}
 
-  async loadRepoLabels() {
-    try {
-      this.repoLabels = await GitHubClient.fetchRepoLabels(this.owner, this.repo);
-    } catch {
-      this.repoLabels = [];
-    }
-  }
+	mounted() {
+		this._originalTitle = document.title;
+		if (this.tab === 'files') {
+			this.activeTab = 'files';
+		}
+		const token = getStoredToken();
+		if (token) {
+			GitHubClient.setToken(token);
+		}
+		this.resolvedScheme = getResolvedScheme();
+		this.hljsTheme      = getStoredHljsThemeId(this.resolvedScheme);
+		loadHljsTheme(this.hljsTheme);
+		this._unsubColorScheme = subscribeColorScheme(() => {
+			const next          = getResolvedScheme();
+			this.resolvedScheme = next;
+			this.hljsTheme      = getStoredHljsThemeId(next);
+			loadHljsTheme(this.hljsTheme);
+		});
+		this.loadAll();
+	}
 
-  async loadFiles() {
-    if (this.files.length || this.filesLoading) return;
-    this.filesLoading = true;
-    try {
-      this.files = await GitHubClient.fetchPRFiles(this.owner, this.repo, this.prNumber);
-      this.loadViewedState();
-    } catch {
-      this.files = [];
-    } finally {
-      this.filesLoading = false;
-    }
-  }
+	beforeUnmount() {
+		this.persistPendingToStorage();
+		this.stopChecksPolling();
+		this._unsubColorScheme?.();
+		this._unsubColorScheme = null;
+		document.title         = this._originalTitle;
+	}
 
-  async loadReviewComments() {
-    this.reviewCommentsLoading = true;
-    try {
-      const [rRev, rIss] = await Promise.allSettled([
-        GitHubClient.fetchPRReviewComments(this.owner, this.repo, this.prNumber),
-        GitHubClient.fetchPRIssueComments(this.owner, this.repo, this.prNumber),
-      ]);
-      this.reviewComments = rRev.status === 'fulfilled' ? rRev.value : [];
-      this.issueComments = rIss.status === 'fulfilled' ? rIss.value : [];
-    } finally {
-      this.reviewCommentsLoading = false;
-    }
-  }
+	async loadAll() {
+		this.loading = true;
+		this.error   = '';
+		try {
+			const [ pr, decision ] = await Promise.all([
+				GitHubClient.fetchPRDetail(this.owner, this.repo, this.prNumber),
+				GitHubClient.fetchPullRequestReviewDecision(this.owner, this.repo, this.prNumber),
+			]);
+			this.pr             = pr;
+			this.reviewDecision = decision;
+			document.title      = `#${this.pr.number} ${this.pr.title}`;
+			const headSha       = pr.head?.sha;
+			if (headSha) {
+				const restored       = loadPendingReview(this.owner, this.repo, this.prNumber, headSha);
+				this.pendingComments = restored ?? [];
+			}
+			else {
+				this.pendingComments = [];
+			}
+			if (pr.user?.login) {
+				await GitHubClient.fetchUserFirstNames([ pr.user.login ]);
+			}
+			this.loading = false;
+			this.loadChecks();
+			this.loadRepoLabels();
+			this.loadReviewComments();
+			if (this.activeTab === 'files') {
+				this.loadFiles();
+			}
+		}
+		catch (e: any) {
+			this.error   = e.message || 'Failed to load PR';
+			this.loading = false;
+		}
+	}
 
-  async loadViewedState() {
-    try {
-      const result = await GitHubClient.fetchPRFilesViewedState(this.owner, this.repo, this.prNumber);
-      this.viewedFiles = result.viewedFiles;
-      this.prNodeId = result.prNodeId;
-    } catch {
-      this.viewedFiles = {};
-    }
-  }
+	async loadChecks() {
+		this.checksLoading = true;
+		try {
+			this.checks      = await GitHubClient.fetchDetailedChecks(this.owner, this.repo, this.prNumber);
+			const hasPending = this.checks.some(check => {
+				const passed = [ 'success', 'neutral', 'skipped' ].includes(check.conclusion ?? '');
+				const failed = [ 'failure', 'timed_out', 'cancelled', 'error' ].includes(check.conclusion ?? '');
+				return !passed && !failed;
+			});
+			if (hasPending) {
+				this.startChecksPolling();
+			}
+		}
+		catch {
+			this.checks = [];
+		}
+		finally {
+			this.checksLoading = false;
+		}
+	}
 
-  switchTab(tab: 'overview' | 'files') {
-    this.activeTab = tab;
-    const base = `/pull-request/${this.owner}/${this.repo}/${this.number}/${tab}`;
-    this.$router.replace({ path: base });
-    if (tab === 'files') this.loadFiles();
-  }
+	async loadRepoLabels() {
+		try {
+			this.repoLabels = await GitHubClient.fetchRepoLabels(this.owner, this.repo);
+		}
+		catch {
+			this.repoLabels = [];
+		}
+	}
 
-  onFileIndexChange(index: number) {
-    this.$router.replace({
-      path: `/pull-request/${this.owner}/${this.repo}/${this.number}/files`,
-      query: { file: String(index) },
-    });
-  }
+	async loadFiles() {
+		if (this.files.length || this.filesLoading) {
+			return;
+		}
+		this.filesLoading = true;
+		try {
+			this.files = await GitHubClient.fetchPRFiles(this.owner, this.repo, this.prNumber);
+			this.loadViewedState();
+		}
+		catch {
+			this.files = [];
+		}
+		finally {
+			this.filesLoading = false;
+		}
+	}
 
-  onViewedChange(payload: { filename: string; state: string }) {
-    this.viewedFiles = { ...this.viewedFiles, [payload.filename]: payload.state };
-  }
+	async loadReviewComments() {
+		this.reviewCommentsLoading = true;
+		try {
+			const [ rRev, rIss ] = await Promise.allSettled([
+				GitHubClient.fetchPRReviewComments(this.owner, this.repo, this.prNumber),
+				GitHubClient.fetchPRIssueComments(this.owner, this.repo, this.prNumber),
+			]);
+			this.reviewComments = rRev.status === 'fulfilled' ? rRev.value : [];
+			this.issueComments  = rIss.status === 'fulfilled' ? rIss.value : [];
+		}
+		finally {
+			this.reviewCommentsLoading = false;
+		}
+	}
 
-  startChecksPolling() {
-    this.stopChecksPolling();
-    this._checksTimer = setInterval(async () => {
-      try {
-        this.checks = await GitHubClient.fetchDetailedChecks(this.owner, this.repo, this.prNumber);
-        const hasPending = this.checks.some(c => {
-          const con = c.conclusion;
-          const passed = con === 'success' || con === 'neutral' || con === 'skipped';
-          const failed = con === 'failure' || con === 'timed_out' || con === 'cancelled' || con === 'error';
-          return !passed && !failed;
-        });
-        if (!hasPending) this.stopChecksPolling();
-      } catch {
-        this.stopChecksPolling();
-      }
-    }, 10000);
-  }
+	async loadViewedState() {
+		try {
+			const result     = await GitHubClient.fetchPRFilesViewedState(this.owner, this.repo, this.prNumber);
+			this.viewedFiles = result.viewedFiles;
+			this.prNodeId    = result.prNodeId;
+		}
+		catch {
+			this.viewedFiles = {};
+		}
+	}
 
-  stopChecksPolling() {
-    if (this._checksTimer) {
-      clearInterval(this._checksTimer);
-      this._checksTimer = null;
-    }
-  }
+	switchTab(tab: 'overview' | 'files') {
+		this.activeTab = tab;
+		const base     = `/pull-request/${this.owner}/${this.repo}/${this.number}/${tab}`;
+		this.$router.replace({ path : base });
+		if (tab === 'files') {
+			this.loadFiles();
+		}
+	}
 
-  async addLabel(name: string) {
-    const fullRepo = `${this.owner}/${this.repo}`;
-    try {
-      await GitHubClient.addLabel(fullRepo, this.prNumber, name);
-      const matched = this.repoLabels.find(l => l.name === name);
-      if (matched) {
-        this.pr.labels.push({ id: matched.id, name: matched.name, color: matched.color });
-      }
-    } catch (e: any) {
-      console.error('Failed to add label:', e);
-    }
-  }
+	onFileIndexChange(index: number) {
+		this.$router.replace({
+			path  : `/pull-request/${this.owner}/${this.repo}/${this.number}/files`,
+			query : { file : String(index) },
+		});
+	}
 
-  async removeLabel(name: string) {
-    const fullRepo = `${this.owner}/${this.repo}`;
-    try {
-      await GitHubClient.removeLabel(fullRepo, this.prNumber, name);
-      this.pr.labels = this.pr.labels.filter((l: any) => l.name !== name);
-    } catch (e: any) {
-      console.error('Failed to remove label:', e);
-    }
-  }
+	onViewedChange(payload: { filename: string; state: string }) {
+		this.viewedFiles = { ...this.viewedFiles, [payload.filename] : payload.state };
+	}
 
-  onAddPending(comment: PendingComment) {
-    this.pendingComments = [...this.pendingComments, comment];
-  }
+	startChecksPolling() {
+		this.stopChecksPolling();
+		this._checksTimer = setInterval(async () => {
+			try {
+				this.checks      = await GitHubClient.fetchDetailedChecks(this.owner, this.repo, this.prNumber);
+				const hasPending = this.checks.some(c => {
+					const con    = c.conclusion;
+					const passed = con === 'success' || con === 'neutral' || con === 'skipped';
+					const failed = con === 'failure' || con === 'timed_out' || con === 'cancelled' || con === 'error';
+					return !passed && !failed;
+				});
+				if (!hasPending) {
+					this.stopChecksPolling();
+				}
+			}
+			catch {
+				this.stopChecksPolling();
+			}
+		}, 10000);
+	}
 
-  onRemovePending(id: string) {
-    this.pendingComments = this.pendingComments.filter(c => c.id !== id);
-  }
+	stopChecksPolling() {
+		if (this._checksTimer) {
+			clearInterval(this._checksTimer);
+			this._checksTimer = null;
+		}
+	}
 
-  onEditPending(updated: PendingComment) {
-    this.pendingComments = this.pendingComments.map(c => c.id === updated.id ? updated : c);
-  }
+	async addLabel(name: string) {
+		const fullRepo = `${this.owner}/${this.repo}`;
+		try {
+			await GitHubClient.addLabel(fullRepo, this.prNumber, name);
+			const matched = this.repoLabels.find(l => l.name === name);
+			if (matched) {
+				this.pr.labels.push({ id : matched.id, name : matched.name, color : matched.color });
+			}
+		}
+		catch (e: any) {
+			console.error('Failed to add label:', e);
+		}
+	}
 
-  onCommentsUpdated() {
-    this.loadReviewComments();
-  }
+	async removeLabel(name: string) {
+		const fullRepo = `${this.owner}/${this.repo}`;
+		try {
+			await GitHubClient.removeLabel(fullRepo, this.prNumber, name);
+			this.pr.labels = this.pr.labels.filter((l: any) => l.name !== name);
+		}
+		catch (e: any) {
+			console.error('Failed to remove label:', e);
+		}
+	}
 
-  async submitReview() {
-    if (!this.pendingComments.length || this.submittingReview) return;
-    this.submittingReview = true;
-    try {
-      await GitHubClient.submitReview(this.owner, this.repo, this.prNumber, this.pr.head.sha, this.pendingComments);
-      this.pendingComments = [];
-      await this.loadReviewComments();
-    } catch (e: any) {
-      console.error('Failed to submit review:', e);
-    } finally {
-      this.submittingReview = false;
-    }
-  }
+	onAddPending(comment: PendingComment) {
+		this.pendingComments = [ ...this.pendingComments, comment ];
+		this.persistPendingToStorage();
+	}
 
-  discardAllPending() {
-    this.pendingComments = [];
-  }
+	onRemovePending(id: string) {
+		this.pendingComments = this.pendingComments.filter(c => c.id !== id);
+		this.persistPendingToStorage();
+	}
 
-  async approvePr() {
-    if (this.approvingPr) return;
-    this.approvingPr = true;
-    try {
-      await GitHubClient.submitReview(this.owner, this.repo, this.prNumber, this.pr.head.sha, [], 'APPROVE');
-      this.reviewDecision = await GitHubClient.fetchPullRequestReviewDecision(
-        this.owner,
-        this.repo,
-        this.prNumber,
-      );
-    } catch (e: any) {
-      console.error('Failed to approve PR:', e);
-    } finally {
-      this.approvingPr = false;
-    }
-  }
+	onEditPending(updated: PendingComment) {
+		this.pendingComments = this.pendingComments.map(c => c.id === updated.id ? updated : c);
+		this.persistPendingToStorage();
+	}
 
-  openMergeConfirm() {
-    if (this.mergingPr || !this.pr) return;
-    this.mergeConfirmError = '';
-    this.mergeConfirmOpen = true;
-  }
+	onCommentsUpdated() {
+		this.loadReviewComments();
+	}
 
-  closeMergeConfirm() {
-    if (this.mergingPr) return;
-    this.mergeConfirmOpen = false;
-    this.mergeConfirmError = '';
-  }
+	async submitReview() {
+		if (!this.pendingComments.length || this.submittingReview) {
+			return;
+		}
+		this.submittingReview = true;
+		try {
+			await GitHubClient.submitReview(this.owner, this.repo, this.prNumber, this.pr.head.sha, this.pendingComments);
+			this.pendingComments = [];
+			this.persistPendingToStorage();
+			await this.loadReviewComments();
+		}
+		catch (e: any) {
+			console.error('Failed to submit review:', e);
+		}
+		finally {
+			this.submittingReview = false;
+		}
+	}
 
-  async confirmMergePr() {
-    if (this.mergingPr || !this.pr) return;
-    this.mergeConfirmError = '';
-    this.mergingPr = true;
-    try {
-      await GitHubClient.mergePullRequestSquash(this.owner, this.repo, this.prNumber);
-      this.mergeConfirmOpen = false;
-      await this.loadAll();
-    } catch (e: any) {
-      console.error('Failed to merge PR:', e);
-      this.mergeConfirmError = e.message || 'Merge failed';
-    } finally {
-      this.mergingPr = false;
-    }
-  }
+	discardAllPending() {
+		this.pendingComments = [];
+		this.persistPendingToStorage();
+	}
+
+	private persistPendingToStorage() {
+		if (!this.pr?.head?.sha) {
+			return;
+		}
+		savePendingReview(this.owner, this.repo, this.prNumber, this.pr.head.sha, this.pendingComments);
+	}
+
+	async approvePr() {
+		if (this.approvingPr) {
+			return;
+		}
+		this.approvingPr = true;
+		try {
+			await GitHubClient.submitReview(this.owner, this.repo, this.prNumber, this.pr.head.sha, [], 'APPROVE');
+			this.reviewDecision = await GitHubClient.fetchPullRequestReviewDecision(
+				this.owner,
+				this.repo,
+				this.prNumber
+			);
+		}
+		catch (e: any) {
+			console.error('Failed to approve PR:', e);
+		}
+		finally {
+			this.approvingPr = false;
+		}
+	}
+
+	openMergeConfirm() {
+		if (this.mergingPr || !this.pr) {
+			return;
+		}
+		this.mergeConfirmError = '';
+		this.mergeConfirmOpen  = true;
+	}
+
+	closeMergeConfirm() {
+		if (this.mergingPr) {
+			return;
+		}
+		this.mergeConfirmOpen  = false;
+		this.mergeConfirmError = '';
+	}
+
+	openWhitespaceViewedConfirm() {
+		if (this.markingWhitespaceViewed || !this.whitespaceOnlyUnviewedCount) {
+			return;
+		}
+		this.whitespaceViewedConfirmError = '';
+		this.whitespaceViewedConfirmOpen  = true;
+	}
+
+	closeWhitespaceViewedConfirm() {
+		if (this.markingWhitespaceViewed) {
+			return;
+		}
+		this.whitespaceViewedConfirmOpen  = false;
+		this.whitespaceViewedConfirmError = '';
+	}
+
+	async confirmMarkWhitespaceViewedFiles() {
+		if (this.markingWhitespaceViewed || !this.prNodeId) {
+			return;
+		}
+		const targets = this.whitespaceOnlyUnviewedFiles;
+		if (!targets.length) {
+			this.whitespaceViewedConfirmOpen = false;
+			return;
+		}
+		this.whitespaceViewedConfirmError = '';
+		this.markingWhitespaceViewed      = true;
+		try {
+			for (const f of targets) {
+				await GitHubClient.markFileAsViewed(this.prNodeId, f.filename);
+				this.viewedFiles = { ...this.viewedFiles, [f.filename] : 'VIEWED' };
+			}
+			this.whitespaceViewedConfirmOpen = false;
+		}
+		catch (e: any) {
+			console.error('Failed to mark whitespace-only files as viewed:', e);
+			this.whitespaceViewedConfirmError = e.message || 'Failed to mark files as viewed';
+		}
+		finally {
+			this.markingWhitespaceViewed = false;
+		}
+	}
+
+	async confirmMergePr() {
+		if (this.mergingPr || !this.pr) {
+			return;
+		}
+		this.mergeConfirmError = '';
+		this.mergingPr         = true;
+		try {
+			await GitHubClient.mergePullRequestSquash(this.owner, this.repo, this.prNumber);
+			this.mergeConfirmOpen = false;
+			await this.loadAll();
+		}
+		catch (e: any) {
+			console.error('Failed to merge PR:', e);
+			this.mergeConfirmError = e.message || 'Merge failed';
+		}
+		finally {
+			this.mergingPr = false;
+		}
+	}
+
 }
 </script>
 
@@ -614,25 +849,6 @@ export default class PrDetailView extends Vue {
   margin: 0 auto;
   padding: 0;
   height: 100vh;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.pr-detail-main {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.pr-detail-tab-shell {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
 }
 
 .pr-detail-tab-shell > * {
@@ -642,52 +858,13 @@ export default class PrDetailView extends Vue {
   overflow: hidden;
 }
 
-.pr-detail-loading,
-.pr-detail-error {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-  padding: 80px 0;
-  color: var(--text-secondary);
-}
-
 .pr-detail-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 16px;
   background: var(--bg-secondary);
   border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  gap: 16px;
 }
 
-.pr-detail-header-left {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-  flex: 1;
-}
-
-.pr-detail-header-center {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex: 1;
-}
-
-.pr-detail-header-right {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex: 1;
-  justify-content: flex-end;
+html[data-color-scheme="light"] .pr-detail-header {
+  background: #e4e7ec;
 }
 
 .pr-detail-back {
@@ -696,20 +873,12 @@ export default class PrDetailView extends Vue {
   font-size: 18px;
   line-height: 1;
   transition: color var(--transition);
-  flex-shrink: 0;
 
   &:hover { color: var(--text-primary); }
 }
 
 .pr-detail-title {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--text-primary);
   line-height: 1.2;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  margin: 0;
 }
 
 .pr-detail-badge {
@@ -718,7 +887,6 @@ export default class PrDetailView extends Vue {
   padding: 2px 8px;
   border-radius: 20px;
   white-space: nowrap;
-  flex-shrink: 0;
 }
 
 .pr-detail-badge-open {
@@ -741,16 +909,6 @@ export default class PrDetailView extends Vue {
   color: var(--text-secondary);
 }
 
-.pr-detail-author {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--text-secondary);
-  font-size: 13px;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
 .pr-detail-avatar {
   width: 20px;
   height: 20px;
@@ -768,12 +926,8 @@ export default class PrDetailView extends Vue {
 }
 
 .pr-detail-tabs {
-  display: flex;
-  align-items: center;
-  gap: 2px;
   background: var(--bg-primary);
   border-radius: var(--radius-sm);
-  padding: 2px;
   border: 1px solid var(--border);
 }
 
@@ -796,14 +950,6 @@ export default class PrDetailView extends Vue {
     color: var(--text-primary);
     background: var(--bg-tertiary);
   }
-}
-
-.pr-detail-review-progress {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-left: 12px;
-  white-space: nowrap;
 }
 
 .pr-detail-review-bar-track {
@@ -840,6 +986,38 @@ export default class PrDetailView extends Vue {
 .pr-detail-review-progress.complete {
   .pr-detail-review-bar-fill { background: var(--accent-green); }
   .pr-detail-review-pct { color: var(--accent-green); }
+}
+
+.pr-whitespace-viewed-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  margin-left: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--transition);
+}
+
+.pr-whitespace-viewed-btn:hover:not(:disabled) {
+  color: var(--text-primary);
+  border-color: var(--text-tertiary);
+}
+
+.pr-whitespace-viewed-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.pr-detail-header-center .pr-whitespace-viewed-btn.has-tooltip {
+  position: relative;
 }
 
 .pr-approve-btn {
@@ -897,13 +1075,6 @@ export default class PrDetailView extends Vue {
 }
 
 .pr-merge-confirm-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 10000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
   background: var(--overlay-backdrop);
   backdrop-filter: blur(2px);
 }
@@ -946,13 +1117,6 @@ export default class PrDetailView extends Vue {
   background: var(--danger-bg-subtle);
   border: 1px solid var(--danger-border);
   border-radius: var(--radius-sm);
-}
-
-.pr-merge-confirm-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  flex-wrap: wrap;
 }
 
 .pr-merge-confirm-submit {

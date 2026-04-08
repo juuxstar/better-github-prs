@@ -1,44 +1,33 @@
 <template>
-  <div class="rate-limit-banner" v-show="visible">
-    <span v-html="$icon('warning', 16)"></span>
-    <span>{{ message }}</span>
+  <div
+    class="rate-limit-banner u-flex u-items-center u-gap-2 u-py-2 u-px-6 u-fs-13 u-fw-500 u-sticky u-z-99"
+    v-show="visible"
+  >
+    <span class="u-flex-shrink-0" v-html="$icon('warning', 16)"></span>
+    <span class="u-flex-1">{{ message }}</span>
     <button class="rate-limit-dismiss" title="Dismiss" @click="$emit('dismiss')">×</button>
   </div>
 </template>
 
 <script lang="ts">
-import { Component, Prop, Vue } from 'vue-facing-decorator'
+import { Component, Prop, Vue } from 'vue-facing-decorator';
 
 /** Dismissible warning banner shown when the GitHub API rate limit is exceeded. */
-@Component({ emits: ['dismiss'] })
+@Component({ emits : [ 'dismiss' ] })
 export default class RateLimitBanner extends Vue {
-  @Prop() visible!: boolean
-  @Prop() message!: string
+
+	@Prop({ required : true }) readonly visible!: boolean;
+	@Prop({ required : true }) readonly message!: string;
+
 }
 </script>
 
 <style>
 .rate-limit-banner {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 24px;
+  top: 50px;
   background: var(--danger-btn-bg);
   border-bottom: 1px solid var(--accent-red);
   color: var(--accent-red);
-  font-size: 13px;
-  font-weight: 500;
-  position: sticky;
-  top: 50px;
-  z-index: 99;
-}
-
-.rate-limit-banner svg {
-  flex-shrink: 0;
-}
-
-.rate-limit-banner span {
-  flex: 1;
 }
 
 .rate-limit-dismiss {

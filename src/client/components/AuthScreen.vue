@@ -1,9 +1,16 @@
 <template>
   <section class="screen">
-    <div class="auth-container">
-      <div class="auth-icon" v-html="$icon('github', 48)"></div>
-      <h2 class="auth-title">Sign in with GitHub</h2>
-      <p class="auth-description">Authenticate to view your open pull requests across all repositories.</p>
+    <div
+      class="u-flex u-flex-col u-items-center u-justify-center u-flex-1 u-p-screen u-text-center"
+    >
+      <div
+        class="u-text-secondary u-mb-6 u-opacity-60"
+        v-html="$icon('github', 48)"
+      ></div>
+      <h2 class="u-fs-24 u-fw-600 u-mb-2-5 u-text-primary">Sign in with GitHub</h2>
+      <p class="u-fs-15 u-leading-relaxed u-mb-8 u-max-w-360 u-text-secondary">
+        Authenticate to view your open pull requests across all repositories.
+      </p>
       <button
         class="btn btn-primary btn-lg"
         @click="$emit('login')"
@@ -15,49 +22,19 @@
 </template>
 
 <script lang="ts">
-import { Component, Prop, Vue } from 'vue-facing-decorator';
 import { iconSvg } from '@/lib/icons';
 
-/** Sign-in screen that prompts the user to authenticate via GitHub OAuth. */
-@Component({ emits: ['login'] })
-export default class AuthScreen extends Vue {
-  @Prop() disabled!: boolean;
+import { Component, Prop, Vue } from 'vue-facing-decorator';
 
-  get buttonHtml(): string {
-    return this.disabled ? 'Starting...' : iconSvg('github', 18) + ' Sign in with GitHub';
-  }
+/** Sign-in screen that prompts the user to authenticate via GitHub OAuth. */
+@Component({ emits : [ 'login' ] })
+export default class AuthScreen extends Vue {
+
+	@Prop({ required : true }) readonly disabled!: boolean;
+
+	get buttonHtml(): string {
+		return this.disabled ? 'Starting...' : `${iconSvg('github', 18)} Sign in with GitHub`;
+	}
+
 }
 </script>
-
-<style>
-.auth-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 80px 32px;
-  text-align: center;
-  flex: 1;
-}
-
-.auth-icon {
-  color: var(--text-secondary);
-  margin-bottom: 24px;
-  opacity: 0.6;
-}
-
-.auth-title {
-  font-size: 24px;
-  font-weight: 600;
-  margin-bottom: 10px;
-  color: var(--text-primary);
-}
-
-.auth-description {
-  color: var(--text-secondary);
-  font-size: 15px;
-  margin-bottom: 32px;
-  max-width: 360px;
-  line-height: 1.6;
-}
-</style>

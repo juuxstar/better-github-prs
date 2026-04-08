@@ -1,8 +1,11 @@
 {
   "editor.insertSpaces": false,
-  "editor.tabSize": 2,
+  "editor.tabSize": 4,
+  "editor.rulers": [200],
+  "editor.wordWrapColumn": 200,
+  "eslint.run": "onSave",
   "editor.codeActionsOnSave": {
-    "source.fixAll.eslint": "explicit"
+    "source.fixAll.eslint": "always"
   },
   "eslint.validate": [
     "javascript",

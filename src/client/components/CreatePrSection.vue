@@ -1,14 +1,18 @@
 <template>
-	<div class="create-pr-section">
-		<div class="pr-column-header">
-			<h2 class="pr-column-title">Create PR</h2>
+	<div class="create-pr-section u-mb-4 u-flex-none">
+		<div class="pr-column-header u-flex u-flex-row u-items-center u-gap-2 u-py-2-5 u-px-4">
+			<h2 class="pr-column-title u-m-0 u-fs-12 u-fw-600 u-text-secondary u-uppercase u-tracking-wide">Create PR</h2>
 		</div>
-		<div class="create-pr-body">
-			<div class="create-pr-list">
-				<div v-for="b in branches" :key="b.name" class="create-pr-row">
-					<span class="create-pr-branch" :title="b.name">{{ b.name }}</span>
-					<input class="create-pr-title-input" type="text" v-model="titles[b.name]">
-					<button class="create-pr-btn" :disabled="creating[b.name]" @click="doCreate(b.name)">
+		<div class="create-pr-body u-py-2 u-px-3">
+			<div class="create-pr-list u-flex u-flex-col u-gap-1-5">
+				<div
+					v-for="b in branches"
+					:key="b.name"
+					class="create-pr-row u-flex u-items-center u-gap-2 u-py-1-5"
+				>
+					<span class="create-pr-branch u-truncate u-flex-1 u-fs-13 u-fw-500" :title="b.name">{{ b.name }}</span>
+					<input class="create-pr-title-input u-flex-2" type="text" v-model="titles[b.name]">
+					<button class="create-pr-btn u-flex-shrink-0" :disabled="creating[b.name]" @click="doCreate(b.name)">
 						{{ creating[b.name] ? 'Creating...' : 'Create PR' }}
 					</button>
 				</div>
@@ -18,29 +22,29 @@
 </template>
 
 <script lang="ts">
-import { Component, Prop, Watch, Vue } from 'vue-facing-decorator';
+import { Component, Prop, Vue, Watch } from 'vue-facing-decorator';
 
 interface BranchEntry {
-	name: string
-	message: string
+	name: string;
+	message: string;
 }
 
 /** Lists recent branches and lets the user create a new PR from each one. */
-@Component({ emits: ['create-pr'] })
+@Component({ emits : [ 'create-pr' ] })
 export default class CreatePrSection extends Vue {
 
-	@Prop() branches!: BranchEntry[];
+	@Prop({ required : true }) readonly branches!: BranchEntry[];
 
 	titles: Record<string, string> = {};
 	creating: Record<string, boolean> = {};
 
-	@Watch('branches', { immediate: true })
+	@Watch('branches', { immediate : true })
 	onBranchesChange(branches: BranchEntry[]) {
 		const titles: Record<string, string> = {};
 		for (const b of branches) {
 			titles[b.name] = this.titles[b.name] || b.message || this.humanizeBranch(b.name);
 		}
-		this.titles = titles;
+		this.titles   = titles;
 		this.creating = {};
 	}
 
@@ -50,10 +54,13 @@ export default class CreatePrSection extends Vue {
 
 	doCreate(branch: string) {
 		const title = (this.titles[branch] || '').trim();
-		if (!title) return;
-		this.creating = { ...this.creating, [branch]: true };
+		if (!title) {
+			return;
+		}
+		this.creating = { ...this.creating, [branch] : true };
 		this.$emit('create-pr', { branch, title });
 	}
+
 }
 </script>
 
@@ -62,25 +69,9 @@ export default class CreatePrSection extends Vue {
   background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  margin-bottom: 16px;
-  flex: 0 0 auto;
-}
-
-.create-pr-body {
-  padding: 8px 12px;
-}
-
-.create-pr-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
 }
 
 .create-pr-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 0;
   border-bottom: 1px solid var(--border);
 
   &:last-child {
@@ -89,19 +80,11 @@ export default class CreatePrSection extends Vue {
 }
 
 .create-pr-branch {
-  font-size: 13px;
-  font-weight: 500;
   color: var(--accent-blue);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  min-width: 0;
-  flex: 1;
 }
 
 .create-pr-title-input {
-  flex: 2;
-  padding: 4px 8px;
+  padding: var(--u-1) var(--u-2);
   background: var(--bg-primary);
   color: var(--text-primary);
   border: 1px solid var(--border);
@@ -117,8 +100,7 @@ export default class CreatePrSection extends Vue {
 }
 
 .create-pr-btn {
-  flex-shrink: 0;
-  padding: 4px 10px;
+  padding: var(--u-1) var(--u-2-5);
   background: var(--btn-primary-bg);
   color: var(--btn-primary-fg);
   border: none;

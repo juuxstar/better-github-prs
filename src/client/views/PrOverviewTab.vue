@@ -1,37 +1,38 @@
 <template>
-  <div class="pr-detail-overview">
-  <div class="pr-detail-body-grid">
-    <section class="pr-detail-col-section pr-detail-col-main">
+  <div class="pr-detail-overview u-flex u-flex-col u-flex-1 u-min-h-0 u-overflow-hidden">
+  <div
+    class="pr-detail-body-grid u-grid u-gap-4 u-flex-1 u-min-h-0 u-overflow-y-auto u-items-stretch"
+  >
+    <section class="pr-detail-col-section pr-detail-col-main u-flex u-flex-col u-gap-4 u-min-w-0">
       <div class="pr-detail-description card">
-        <h2>Description</h2>
-        <div
-          v-if="pr.body"
-          class="pr-detail-body-text markdown-body"
-          v-html="pr.body_html || pr.body"
-        ></div>
-        <p v-else class="pr-detail-empty">No description provided</p>
+        <h2 class="u-flex-shrink-0">Description</h2>
+        <div v-if="pr.body" class="pr-detail-body-text markdown-body" v-html="pr.body_html || pr.body" ></div>
+        <p v-else class="pr-detail-empty u-flex-shrink-0">No description provided</p>
       </div>
 
       <div class="pr-detail-stats card">
-        <h2>Stats</h2>
-        <div class="pr-detail-stat-grid">
-          <div class="pr-detail-stat pr-detail-stat-branch">
-            <div class="pr-detail-stat-value pr-detail-stat-branch-wrap" :title="branchCompareTitle">
-              <span class="pr-detail-branch-piece">{{ headBranchText }}</span>
-              <span class="pr-detail-branch-arrow" aria-hidden="true">→</span>
-              <span class="pr-detail-branch-piece">{{ baseBranchText }}</span>
+        <h2 class="u-flex-shrink-0">Stats</h2>
+        <div class="pr-detail-stat-grid u-flex u-flex-wrap u-items-start u-gap-3 u-text-center">
+          <div class="pr-detail-stat pr-detail-stat-branch u-flex u-flex-col u-gap-0-5">
+            <div
+              class="pr-detail-stat-value pr-detail-stat-branch-wrap u-flex u-flex-wrap u-items-center u-gap-1 u-fs-13 u-fw-600 u-font-mono u-leading-1-4"
+              :title="branchCompareTitle"
+            >
+              <span class="pr-detail-branch-piece u-min-w-0 u-text-primary">{{ headBranchText }}</span>
+              <span class="pr-detail-branch-arrow u-flex-shrink-0 u-text-tertiary u-fw-500" aria-hidden="true">→</span>
+              <span class="pr-detail-branch-piece u-min-w-0 u-text-primary">{{ baseBranchText }}</span>
             </div>
             <span class="pr-detail-stat-label">Branch</span>
           </div>
-          <div class="pr-detail-stat">
+          <div class="pr-detail-stat u-flex u-flex-col u-gap-0-5">
             <span class="pr-detail-stat-value">{{ pr.changed_files }}</span>
             <span class="pr-detail-stat-label">Files</span>
           </div>
-          <div class="pr-detail-stat pr-detail-stat-add">
+          <div class="pr-detail-stat pr-detail-stat-add u-flex u-flex-col u-gap-0-5">
             <span class="pr-detail-stat-value">+{{ pr.additions }}</span>
             <span class="pr-detail-stat-label">Additions</span>
           </div>
-          <div class="pr-detail-stat pr-detail-stat-del">
+          <div class="pr-detail-stat pr-detail-stat-del u-flex u-flex-col u-gap-0-5">
             <span class="pr-detail-stat-value">&minus;{{ pr.deletions }}</span>
             <span class="pr-detail-stat-label">Deletions</span>
           </div>
@@ -39,12 +40,12 @@
       </div>
 
       <div class="pr-detail-labels card">
-        <h2>Labels</h2>
-        <div class="pr-detail-labels-list">
+        <h2 class="u-flex-shrink-0">Labels</h2>
+        <div class="pr-detail-labels-list u-flex u-flex-wrap u-gap-1-5 u-mb-3">
           <span
             v-for="label in pr.labels"
             :key="label.id"
-            class="pr-detail-label"
+            class="pr-detail-label u-inline-flex u-items-center u-gap-1 u-fs-12 u-fw-500 u-whitespace-nowrap"
             :style="labelStyle(label)"
           >
             {{ label.name }}
@@ -54,15 +55,15 @@
               @click="$emit('remove-label', label.name)"
             >&times;</button>
           </span>
-          <span v-if="!pr.labels.length" class="pr-detail-empty">No labels</span>
+          <span v-if="!pr.labels.length" class="pr-detail-empty u-flex-shrink-0">No labels</span>
         </div>
-        <div class="pr-detail-add-label">
+        <div class="pr-detail-add-label u-relative">
           <div class="pr-detail-add-label-toggle">
             <button type="button" class="pr-detail-compact-btn" @click="toggleLabelDropdown">
               + Add label
             </button>
           </div>
-          <div v-if="labelDropdownOpen" class="pr-detail-label-dropdown">
+          <div v-if="labelDropdownOpen" class="pr-detail-label-dropdown u-flex u-flex-col u-z-100" >
             <input
               v-model="labelSearch"
               class="pr-detail-label-search"
@@ -73,10 +74,10 @@
               <li
                 v-for="label in filteredRepoLabels"
                 :key="label.id"
-                class="pr-detail-label-option"
+                class="pr-detail-label-option u-flex u-items-center u-gap-2"
                 @click="handleAddLabel(label.name)"
               >
-                <span class="pr-detail-label-swatch" :style="{ background: '#' + label.color }"></span>
+                <span class="pr-detail-label-swatch u-flex-shrink-0" :style="{ background : '#' + label.color }"></span>
                 {{ label.name }}
               </li>
               <li v-if="!filteredRepoLabels.length" class="pr-detail-label-option pr-detail-label-option-empty">
@@ -88,21 +89,32 @@
       </div>
     </section>
 
-    <section class="pr-detail-col-section pr-detail-col-comments">
+    <section class="pr-detail-col-section pr-detail-col-comments u-flex u-flex-col u-gap-4 u-min-w-0">
       <div class="pr-detail-comments card">
-        <h2>Comments ({{ commentsUnresolvedTotalLabel }})</h2>
-        <div v-if="commentsLoading" class="pr-detail-comments-loading">
+        <h2 class="u-flex-shrink-0">Comments ({{ commentsUnresolvedTotalLabel }})</h2>
+        <div
+          v-if="commentsLoading"
+          class="pr-detail-comments-loading u-flex u-items-center u-gap-2 u-fs-13 u-text-secondary u-flex-shrink-0"
+        >
           <span class="async-loader"></span> Loading comments...
         </div>
-        <ul v-else-if="sortedOverviewComments.length" class="pr-detail-comments-list">
+        <ul
+          v-else-if="sortedOverviewComments.length"
+          class="pr-detail-comments-list u-flex u-flex-col u-gap-3 u-flex-1 u-min-h-0 u-overflow-y-auto u-m-0 u-p-0"
+        >
           <li
             v-for="item in sortedOverviewComments"
             :key="item.key"
-            :class="commentBlockClass(item)"
+            class="pr-detail-comment-block"
+            :class="{
+              'pr-detail-comment-issue': item.kind === 'issue',
+              'pr-detail-comment-review': item.kind !== 'issue',
+              'pr-detail-comment-resolved': item.kind !== 'issue' && item.thread.resolved,
+            }"
           >
             <template v-if="item.kind === 'issue'">
               <div class="pr-detail-comment-meta">
-                <img :src="item.comment.user.avatar_url" class="pr-detail-comment-avatar" alt="" />
+                <img :src="item.comment.user.avatar_url" class="pr-detail-comment-avatar u-flex-shrink-0" alt="" />
                 <span class="pr-detail-comment-author">{{ item.comment.user.login }}</span>
                 <span class="pr-detail-comment-time">{{ timeAgo(item.comment.created_at) }}</span>
                 <span class="pr-detail-comment-badge">Conversation</span>
@@ -114,14 +126,14 @@
                 <div class="pr-detail-resolved-compact">
                   <button
                     type="button"
-                    class="pr-detail-resolved-title-btn"
+                    class="pr-detail-resolved-title-btn u-flex-grow-1 u-min-w-0"
                     title="Show full thread"
                     @click="expandResolvedThread(item.thread.id)"
                   >
-                    <span class="pr-detail-resolved-chevron" aria-hidden="true">▸</span>
+                    <span class="pr-detail-resolved-chevron u-flex-shrink-0" aria-hidden="true">▸</span>
                     <span class="pr-detail-resolved-title-text">{{ resolvedThreadBriefTitle(item.thread) }}</span>
                   </button>
-                  <div class="pr-detail-resolved-compact-actions">
+                  <div class="pr-detail-resolved-compact-actions u-inline-flex u-items-start u-gap-2 u-flex-shrink-0">
                     <button
                       v-if="item.thread.threadNodeId"
                       type="button"
@@ -138,11 +150,8 @@
               </template>
               <template v-else>
                 <div class="pr-detail-review-head">
-                  <div
-                    v-if="item.thread.threadNodeId || item.thread.resolved"
-                    class="pr-detail-comment-card-top"
-                  >
-                    <span class="pr-detail-comment-card-actions-tr">
+                  <div v-if="item.thread.threadNodeId || item.thread.resolved" class="pr-detail-comment-card-top" >
+                    <span class="pr-detail-comment-card-actions-tr u-inline-flex u-items-center u-gap-2 u-flex-shrink-0">
                       <button
                         v-if="item.thread.resolved"
                         type="button"
@@ -177,13 +186,9 @@
                     >{{ item.thread.resolved ? 'Resolved' : 'Open' }}</span>
                   </div>
                 </div>
-                <div
-                  v-for="c in item.thread.comments"
-                  :key="c.id"
-                  class="pr-detail-comment-review-reply"
-                >
+                <div v-for="c in item.thread.comments" :key="c.id" class="pr-detail-comment-review-reply" >
                   <div class="pr-detail-comment-meta">
-                    <img :src="c.user.avatar_url" class="pr-detail-comment-avatar" alt="" />
+                    <img :src="c.user.avatar_url" class="pr-detail-comment-avatar u-flex-shrink-0" alt="" />
                     <span class="pr-detail-comment-author">{{ c.user.login }}</span>
                     <span class="pr-detail-comment-time">{{ timeAgo(c.created_at) }}</span>
                     <span class="pr-detail-comment-badge">Review</span>
@@ -194,25 +199,32 @@
             </template>
           </li>
         </ul>
-        <p v-else class="pr-detail-empty">No comments on this pull request yet</p>
+        <p v-else class="pr-detail-empty u-flex-shrink-0">No comments on this pull request yet</p>
       </div>
     </section>
 
     <section class="pr-detail-col-section pr-detail-col-checks">
       <div class="pr-detail-checks card">
-        <h2>Checks ({{ checksSummaryText }})</h2>
-        <div v-if="checksLoading" class="pr-detail-checks-loading">
+        <h2 class="u-flex-shrink-0">Checks ({{ checksSummaryText }})</h2>
+        <div v-if="checksLoading" class="pr-detail-checks-loading u-flex u-items-center u-gap-2 u-fs-13 u-text-secondary u-flex-shrink-0" >
           <span class="async-loader"></span> Loading checks...
         </div>
         <ul v-else-if="checks.length" class="pr-detail-checks-list">
           <li v-for="check in checks" :key="check.name" class="pr-detail-check-item">
             <div class="pr-detail-check-row">
-              <span :class="checkIconClass(check)" class="pr-detail-check-icon">{{ checkIcon(check) }}</span>
-              <span class="pr-detail-check-name">
+              <span
+                class="pr-detail-check-icon u-flex-shrink-0"
+                :class="{
+                  'check-passed': isCheckPassed(check),
+                  'check-failed': isCheckFailed(check),
+                  'check-pending': !isCheckPassed(check) && !isCheckFailed(check),
+                }"
+              >{{ checkIcon(check) }}</span>
+              <span class="pr-detail-check-name u-min-w-0 u-flex-grow-1 u-truncate">
                 <a v-if="check.url" :href="check.url" target="_blank" rel="noopener">{{ check.name }}</a>
                 <span v-else>{{ check.name }}</span>
               </span>
-              <span class="pr-detail-check-conclusion">{{ checkLabel(check) }}</span>
+              <span class="pr-detail-check-conclusion u-flex-shrink-0">{{ checkLabel(check) }}</span>
             </div>
             <ul v-if="failureAnnotations(check).length" class="pr-detail-annotations">
               <li v-for="(ann, idx) in failureAnnotations(check)" :key="idx" class="pr-detail-annotation">
@@ -223,7 +235,7 @@
             </ul>
           </li>
         </ul>
-        <p v-else class="pr-detail-empty">No checks found</p>
+        <p v-else class="pr-detail-empty u-flex-shrink-0">No checks found</p>
       </div>
     </section>
   </div>
@@ -231,297 +243,293 @@
 </template>
 
 <script lang="ts">
-import { Component, Prop, Vue } from 'vue-facing-decorator';
-import type { CheckAnnotation, CheckRunDetail, RepoLabel, ReviewComment, IssueComment } from '@/lib/githubClient';
+import type { CheckAnnotation, CheckRunDetail, IssueComment, RepoLabel, ReviewComment } from '@/lib/githubClient';
 import GitHubClient, { stripCommentTypePrefix } from '@/lib/githubClient';
-import { renderGithubMarkdown } from '@/lib/githubMarkdown';
-import { timeAgo } from '@/lib/utils';
+import { renderGithubMarkdown }                 from '@/lib/githubMarkdown';
+import { timeAgo }                              from '@/lib/utils';
 
-type OverviewThread = {
-  id: number;
-  path: string;
-  line: number | null;
-  side: string;
-  comments: ReviewComment[];
-  created_at: string;
-  resolved: boolean;
-  threadNodeId?: string;
-};
+import { Component, Prop, Vue } from 'vue-facing-decorator';
+
+interface OverviewThread {
+	id: number;
+	path: string;
+	line: number | null;
+	side: string;
+	comments: ReviewComment[];
+	created_at: string;
+	resolved: boolean;
+	threadNodeId?: string;
+}
 
 type OverviewRow =
   | { kind: 'issue'; key: string; sortTime: number; comment: IssueComment }
   | { kind: 'review-thread'; key: string; sortTime: number; thread: OverviewThread };
 
-@Component({ emits: ['add-label', 'remove-label', 'comments-updated'] })
+@Component({ emits : [ 'add-label', 'remove-label', 'comments-updated' ] })
 export default class PrOverviewTab extends Vue {
-  @Prop() pr!: any;
-  @Prop() checks!: CheckRunDetail[];
-  @Prop() checksLoading!: boolean;
-  @Prop() repoLabels!: RepoLabel[];
-  @Prop({ default: () => [] }) reviewComments!: ReviewComment[];
-  @Prop({ default: () => [] }) issueComments!: IssueComment[];
-  @Prop({ default: false }) commentsLoading!: boolean;
 
-  readonly timeAgo = timeAgo;
+	@Prop({ required : true }) readonly pr!: any;
+	@Prop({ required : true }) readonly checks!: CheckRunDetail[];
+	@Prop({ required : true }) readonly checksLoading!: boolean;
+	@Prop({ required : true }) readonly repoLabels!: RepoLabel[];
+	@Prop({ default : () => [] }) readonly reviewComments!: ReviewComment[];
+	@Prop({ default : () => [] }) readonly issueComments!: IssueComment[];
+	@Prop({ default : false }) readonly commentsLoading!: boolean;
 
-  labelDropdownOpen = false;
-  labelSearch = '';
-  /** Root review comment id while a resolve/unresolve request is in flight */
-  resolveTogglingThreadId: number | null = null;
+	readonly timeAgo = timeAgo;
 
-  /** Review thread ids whose resolved threads are shown expanded (default collapsed). */
-  resolvedThreadsExpanded: Record<number, true> = {};
+	labelDropdownOpen = false;
+	labelSearch = '';
+	/** Root review comment id while a resolve/unresolve request is in flight */
+	resolveTogglingThreadId: number | null = null;
 
-  /** Unresolved count / total rows (issue comments + review threads). Issue comments count as unresolved. */
-  get commentsUnresolvedTotalLabel(): string {
-    if (this.commentsLoading) return '... / ...';
-    const issues = this.issueComments.length;
-    const threads = this.reviewCommentThreads;
-    const unresolvedThreads = threads.filter(t => !t.resolved).length;
-    const unresolved = issues + unresolvedThreads;
-    const total = issues + threads.length;
-    return `${unresolved} / ${total}`;
-  }
+	/** Review thread ids whose resolved threads are shown expanded (default collapsed). */
+	resolvedThreadsExpanded: Record<number, true> = {};
 
-  get headBranchText(): string {
-    const h = this.pr?.head;
-    if (!h) return '—';
-    return String(h.label || h.ref || '—');
-  }
+	/** Unresolved count / total rows (issue comments + review threads). Issue comments count as unresolved. */
+	get commentsUnresolvedTotalLabel(): string {
+		if (this.commentsLoading) {
+			return '... / ...';
+		}
+		const issues            = this.issueComments.length;
+		const threads           = this.reviewCommentThreads;
+		const unresolvedThreads = threads.filter(t => !t.resolved).length;
+		const unresolved        = issues + unresolvedThreads;
+		const total             = issues + threads.length;
+		return `${unresolved} / ${total}`;
+	}
 
-  get baseBranchText(): string {
-    const b = this.pr?.base;
-    if (!b) return '—';
-    return String(b.ref || '—');
-  }
+	get headBranchText(): string {
+		const h = this.pr?.head;
+		return h ? String(h.label || h.ref || '—') : '—';
+	}
 
-  get branchCompareTitle(): string {
-    return `${this.headBranchText} into ${this.baseBranchText}`;
-  }
+	get baseBranchText(): string {
+		const b = this.pr?.base;
+		return b ? String(b.ref || '—') : '—';
+	}
 
-  get reviewCommentThreads(): OverviewThread[] {
-    const list = this.reviewComments || [];
-    const rootMap = new Map<number, ReviewComment>();
-    const replyMap = new Map<number, ReviewComment[]>();
-    for (const c of list) {
-      if (c.in_reply_to_id) {
-        const rid = c.in_reply_to_id;
-        const arr = replyMap.get(rid);
-        if (arr) arr.push(c);
-        else replyMap.set(rid, [c]);
-      } else {
-        rootMap.set(c.id, c);
-      }
-    }
-    const threads: OverviewThread[] = [];
-    for (const [rootId, root] of rootMap) {
-      const replies = replyMap.get(rootId) || [];
-      const all = [root, ...replies].sort(
-        (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
-      );
-      const resolved = !all.some(c => c.isResolved === false);
-      threads.push({
-        id: rootId,
-        path: root.path,
-        line: root.line,
-        side: root.side,
-        comments: all,
-        created_at: root.created_at,
-        resolved,
-        threadNodeId: root.threadNodeId,
-      });
-    }
-    return threads;
-  }
+	get branchCompareTitle(): string {
+		return `${this.headBranchText} into ${this.baseBranchText}`;
+	}
 
-  get sortedOverviewComments(): OverviewRow[] {
-    const rows: OverviewRow[] = [];
-    for (const comment of this.issueComments || []) {
-      rows.push({
-        kind: 'issue',
-        key: `issue-${comment.id}`,
-        sortTime: new Date(comment.created_at).getTime(),
-        comment,
-      });
-    }
-    for (const thread of this.reviewCommentThreads) {
-      rows.push({
-        kind: 'review-thread',
-        key: `thread-${thread.id}`,
-        sortTime: new Date(thread.created_at).getTime(),
-        thread,
-      });
-    }
-    rows.sort((a, b) => a.sortTime - b.sortTime);
-    return rows;
-  }
+	get reviewCommentThreads(): OverviewThread[] {
+		const list     = this.reviewComments || [];
+		const rootMap  = new Map<number, ReviewComment>();
+		const replyMap = new Map<number, ReviewComment[]>();
+		for (const c of list) {
+			if (c.in_reply_to_id) {
+				const rid = c.in_reply_to_id;
+				const arr = replyMap.get(rid);
+				if (arr) {
+					arr.push(c);
+				}
+				else {
+					replyMap.set(rid, [ c ]);
+				}
+			}
+			else {
+				rootMap.set(c.id, c);
+			}
+		}
+		const threads: OverviewThread[] = [];
+		for (const [ rootId, root ] of rootMap) {
+			const replies = replyMap.get(rootId) || [];
+			const all     = [ root, ...replies ].sort(
+				(a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+			);
+			const resolved = !all.some(c => c.isResolved === false);
+			threads.push({
+				id           : rootId,
+				path         : root.path,
+				line         : root.line,
+				side         : root.side,
+				comments     : all,
+				created_at   : root.created_at,
+				resolved,
+				threadNodeId : root.threadNodeId,
+			});
+		}
+		return threads;
+	}
 
-  commentBlockClass(item: OverviewRow): string[] {
-    const base = ['pr-detail-comment-block'];
-    if (item.kind === 'issue') {
-      base.push('pr-detail-comment-issue');
-    } else {
-      base.push('pr-detail-comment-review');
-      if (item.thread.resolved) base.push('pr-detail-comment-resolved');
-    }
-    return base;
-  }
+	get sortedOverviewComments(): OverviewRow[] {
+		const rows: OverviewRow[] = [];
+		for (const comment of this.issueComments || []) {
+			rows.push({
+				kind     : 'issue',
+				key      : `issue-${comment.id}`,
+				sortTime : new Date(comment.created_at).getTime(),
+				comment,
+			});
+		}
+		for (const thread of this.reviewCommentThreads) {
+			rows.push({
+				kind     : 'review-thread',
+				key      : `thread-${thread.id}`,
+				sortTime : new Date(thread.created_at).getTime(),
+				thread,
+			});
+		}
+		rows.sort((a, b) => a.sortTime - b.sortTime);
+		return rows;
+	}
 
-  isResolvedThreadExpanded(threadId: number): boolean {
-    return !!this.resolvedThreadsExpanded[threadId];
-  }
+	isResolvedThreadExpanded(threadId: number): boolean {
+		return !!this.resolvedThreadsExpanded[threadId];
+	}
 
-  expandResolvedThread(threadId: number) {
-    this.resolvedThreadsExpanded = { ...this.resolvedThreadsExpanded, [threadId]: true };
-  }
+	expandResolvedThread(threadId: number) {
+		this.resolvedThreadsExpanded = { ...this.resolvedThreadsExpanded, [threadId] : true };
+	}
 
-  collapseResolvedThread(threadId: number) {
-    const next = { ...this.resolvedThreadsExpanded };
-    delete next[threadId];
-    this.resolvedThreadsExpanded = next;
-  }
+	collapseResolvedThread(threadId: number) {
+		const next = { ...this.resolvedThreadsExpanded };
+		delete next[threadId];
+		this.resolvedThreadsExpanded = next;
+	}
 
-  /** One-line summary for collapsed resolved threads (path, line, truncated body). */
-  resolvedThreadBriefTitle(thread: OverviewThread): string {
-    const first = thread.comments[0]?.body || '';
-    const stripped = stripCommentTypePrefix(first)
-      .replace(/```[\s\S]*?```/g, ' ')
-      .replace(/`[^`]*`/g, ' ')
-      .replace(/\[[^\]]*\]\([^)]*\)/g, '$1')
-      .replace(/[#*_~]/g, '')
-      .replace(/\s+/g, ' ')
-      .trim();
-    const preview =
-      stripped.length > 64 ? stripped.slice(0, 61).trimEnd() + '…' : stripped;
-    const loc =
-      thread.line != null ? ` · line ${thread.line}` : '';
-    const file = thread.path.split('/').pop() || thread.path;
-    const head = `${file}${loc}`;
-    return preview ? `${head} — ${preview}` : head;
-  }
+	/** One-line summary for collapsed resolved threads (path, line, truncated body). */
+	resolvedThreadBriefTitle(thread: OverviewThread): string {
+		const first    = thread.comments[0]?.body || '';
+		const stripped = stripCommentTypePrefix(first)
+			.replace(/```[\s\S]*?```/g, ' ')
+			.replace(/`[^`]*`/g, ' ')
+			.replace(/\[[^\]]*\]\([^)]*\)/g, '$1')
+			.replace(/[#*_~]/g, '')
+			.replace(/\s+/g, ' ')
+			.trim();
+		const preview
+			= stripped.length > 64 ? `${stripped.slice(0, 61).trimEnd()}…` : stripped;
+		const loc
+			= thread.line != null ? ` · line ${thread.line}` : '';
+		const file = thread.path.split('/').pop() || thread.path;
+		const head = `${file}${loc}`;
+		return preview ? `${head} — ${preview}` : head;
+	}
 
-  markdownConversation(body: string): string {
-    return renderGithubMarkdown(body);
-  }
+	markdownConversation(body: string): string {
+		return renderGithubMarkdown(body);
+	}
 
-  markdownReview(body: string): string {
-    return renderGithubMarkdown(stripCommentTypePrefix(body));
-  }
+	markdownReview(body: string): string {
+		return renderGithubMarkdown(stripCommentTypePrefix(body));
+	}
 
-  async toggleThreadResolved(thread: OverviewThread) {
-    const nodeId = thread.threadNodeId;
-    if (!nodeId || this.resolveTogglingThreadId != null) return;
-    this.resolveTogglingThreadId = thread.id;
-    try {
-      await GitHubClient.setReviewThreadResolved(nodeId, !thread.resolved);
-      this.$emit('comments-updated');
-    } catch (e: any) {
-      console.error('Failed to toggle review thread resolved:', e);
-    } finally {
-      this.resolveTogglingThreadId = null;
-    }
-  }
+	async toggleThreadResolved(thread: OverviewThread) {
+		const nodeId = thread.threadNodeId;
+		if (!nodeId || this.resolveTogglingThreadId != null) {
+			return;
+		}
+		this.resolveTogglingThreadId = thread.id;
+		try {
+			await GitHubClient.setReviewThreadResolved(nodeId, !thread.resolved);
+			this.$emit('comments-updated');
+		}
+		catch (e: any) {
+			console.error('Failed to toggle review thread resolved:', e);
+		}
+		finally {
+			this.resolveTogglingThreadId = null;
+		}
+	}
 
-  get checksSummaryText(): string {
-    if (this.checksLoading) return '...';
-    if (!this.checks.length) return '0';
-    const passed = this.checks.filter(c => this.isCheckPassed(c)).length;
-    const failed = this.checks.filter(c => this.isCheckFailed(c)).length;
-    const pending = this.checks.length - passed - failed;
-    const parts: string[] = [];
-    if (passed) parts.push(`${passed} passed`);
-    if (failed) parts.push(`${failed} failed`);
-    if (pending) parts.push(`${pending} pending`);
-    return parts.join(', ');
-  }
+	get checksSummaryText(): string {
+		if (this.checksLoading) {
+			return '...';
+		}
+		if (!this.checks.length) {
+			return '0';
+		}
+		const passed          = this.checks.filter(c => this.isCheckPassed(c)).length;
+		const failed          = this.checks.filter(c => this.isCheckFailed(c)).length;
+		const pending         = this.checks.length - passed - failed;
+		const parts: string[] = [];
+		if (passed) {
+			parts.push(`${passed} passed`);
+		}
+		if (failed) {
+			parts.push(`${failed} failed`);
+		}
+		if (pending) {
+			parts.push(`${pending} pending`);
+		}
+		return parts.join(', ');
+	}
 
-  get currentLabelNames(): Set<string> {
-    return new Set((this.pr?.labels || []).map((l: any) => l.name.toLowerCase()));
-  }
+	get currentLabelNames(): Set<string> {
+		return new Set((this.pr?.labels || []).map((l: any) => l.name.toLowerCase()));
+	}
 
-  get filteredRepoLabels(): RepoLabel[] {
-    const current = this.currentLabelNames;
-    const search = this.labelSearch.toLowerCase();
-    return this.repoLabels
-      .filter(l => !current.has(l.name.toLowerCase()))
-      .filter(l => l.name.toLowerCase().includes(search));
-  }
+	get filteredRepoLabels(): RepoLabel[] {
+		const current = this.currentLabelNames;
+		const search  = this.labelSearch.toLowerCase();
+		return this.repoLabels
+			.filter(l => !current.has(l.name.toLowerCase()))
+			.filter(l => l.name.toLowerCase().includes(search));
+	}
 
-  isCheckPassed(check: CheckRunDetail): boolean {
-    const c = check.conclusion;
-    return c === 'success' || c === 'neutral' || c === 'skipped';
-  }
+	isCheckPassed(check: CheckRunDetail): boolean {
+		const c = check.conclusion;
+		return c === 'success' || c === 'neutral' || c === 'skipped';
+	}
 
-  isCheckFailed(check: CheckRunDetail): boolean {
-    const c = check.conclusion;
-    return c === 'failure' || c === 'timed_out' || c === 'cancelled' || c === 'error';
-  }
+	isCheckFailed(check: CheckRunDetail): boolean {
+		const c = check.conclusion;
+		return c === 'failure' || c === 'timed_out' || c === 'cancelled' || c === 'error';
+	}
 
-  checkIcon(check: CheckRunDetail): string {
-    if (this.isCheckPassed(check)) return '✓';
-    if (this.isCheckFailed(check)) return '✗';
-    return '●';
-  }
+	checkIcon(check: CheckRunDetail): string {
+		if (this.isCheckPassed(check)) {
+			return '✓';
+		}
+		if (this.isCheckFailed(check)) {
+			return '✗';
+		}
+		return '●';
+	}
 
-  checkIconClass(check: CheckRunDetail): string {
-    if (this.isCheckPassed(check)) return 'check-passed';
-    if (this.isCheckFailed(check)) return 'check-failed';
-    return 'check-pending';
-  }
+	checkLabel(check: CheckRunDetail): string {
+		if (check.conclusion) {
+			return check.conclusion.replace(/_/g, ' ');
+		}
+		if (check.status === 'in_progress') {
+			return 'in progress';
+		}
+		if (check.status === 'queued') {
+			return 'queued';
+		}
+		return 'pending';
+	}
 
-  checkLabel(check: CheckRunDetail): string {
-    if (check.conclusion) return check.conclusion.replace(/_/g, ' ');
-    if (check.status === 'in_progress') return 'in progress';
-    if (check.status === 'queued') return 'queued';
-    return 'pending';
-  }
+	failureAnnotations(check: CheckRunDetail): CheckAnnotation[] {
+		if (!this.isCheckFailed(check)) {
+			return [];
+		}
+		return check.annotations.filter(a => a.level === 'failure' || a.level === 'warning');
+	}
 
-  failureAnnotations(check: CheckRunDetail): CheckAnnotation[] {
-    if (!this.isCheckFailed(check)) return [];
-    return check.annotations.filter(a => a.level === 'failure' || a.level === 'warning');
-  }
+	labelStyle(label: any): Record<string, string> {
+		const c = `#${label.color}`;
+		return { background : `${c}22`, color : c, borderColor : `${c}44` };
+	}
 
-  labelStyle(label: any): Record<string, string> {
-    const c = '#' + label.color;
-    return { background: c + '22', color: c, borderColor: c + '44' };
-  }
+	toggleLabelDropdown() {
+		this.labelDropdownOpen = !this.labelDropdownOpen;
+		this.labelSearch       = '';
+	}
 
-  toggleLabelDropdown() {
-    this.labelDropdownOpen = !this.labelDropdownOpen;
-    this.labelSearch = '';
-  }
+	handleAddLabel(name: string) {
+		this.$emit('add-label', name);
+		this.labelDropdownOpen = false;
+	}
 
-  handleAddLabel(name: string) {
-    this.$emit('add-label', name);
-    this.labelDropdownOpen = false;
-  }
 }
 </script>
 
 <style>
-.pr-detail-overview {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-}
-
 .pr-detail-body-grid {
-  display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
-  align-items: stretch;
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-}
-
-.pr-detail-col-section {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  min-width: 0;
 }
 
 .pr-detail-col-comments {
@@ -536,26 +544,10 @@ export default class PrOverviewTab extends Vue {
   overflow: hidden;
 }
 
-.pr-detail-comments.card h2 {
-  flex-shrink: 0;
-}
-
-.pr-detail-comments.card > .pr-detail-comments-loading,
-.pr-detail-comments.card > .pr-detail-empty {
-  flex-shrink: 0;
-}
-
 @media (max-width: 900px) {
   .pr-detail-body-grid {
     grid-template-columns: 1fr;
   }
-}
-
-.pr-detail-overview .pr-detail-stats .pr-detail-stat-grid {
-  flex-direction: row;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: 12px;
 }
 
 .pr-detail-overview .pr-detail-stats .pr-detail-stat-grid > .pr-detail-stat-branch {
@@ -567,11 +559,6 @@ export default class PrOverviewTab extends Vue {
   flex: 1 1 0;
   min-width: 0;
   text-align: center;
-}
-
-.pr-detail-overview .pr-detail-stats .pr-detail-stat {
-  flex-direction: column;
-  gap: 2px;
 }
 
 .pr-detail-page .card {
@@ -588,6 +575,14 @@ export default class PrOverviewTab extends Vue {
     text-transform: uppercase;
     letter-spacing: 0.5px;
   }
+}
+
+html[data-color-scheme="light"] .pr-detail-overview .card > h2 {
+  margin: -16px -20px 12px;
+  padding: 10px 20px;
+  background: #eceef2;
+  border-bottom: 1px solid var(--border);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
 }
 
 .pr-detail-description .pr-detail-body-text {
@@ -695,14 +690,6 @@ export default class PrOverviewTab extends Vue {
 
 .pr-detail-comments-list {
   list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
 }
 
 .pr-detail-comment-block {
@@ -729,8 +716,6 @@ export default class PrOverviewTab extends Vue {
   display: flex;
   align-items: flex-start;
   gap: 6px;
-  flex: 1;
-  min-width: 0;
   padding: 0;
   margin: 0;
   border: none;
@@ -749,7 +734,6 @@ export default class PrOverviewTab extends Vue {
 }
 
 .pr-detail-resolved-chevron {
-  flex-shrink: 0;
   color: var(--accent-green);
   font-size: 11px;
   margin-top: 2px;
@@ -759,23 +743,8 @@ export default class PrOverviewTab extends Vue {
   word-break: break-word;
 }
 
-.pr-detail-resolved-compact-actions {
-  display: inline-flex;
-  align-items: flex-start;
-  gap: 8px;
-  flex-shrink: 0;
-}
-
 .pr-detail-comment-issue {
   border-left: 3px solid var(--accent-blue);
-}
-
-.pr-detail-comments-loading {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--text-secondary);
-  font-size: 13px;
 }
 
 .pr-detail-comment-meta,
@@ -805,13 +774,6 @@ export default class PrOverviewTab extends Vue {
   justify-content: flex-end;
   gap: 8px;
   margin-bottom: 6px;
-}
-
-.pr-detail-comment-card-actions-tr {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
 }
 
 .pr-detail-compact-btn {
@@ -860,7 +822,6 @@ export default class PrOverviewTab extends Vue {
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  flex-shrink: 0;
 }
 
 .pr-detail-comment-author {
@@ -944,14 +905,6 @@ export default class PrOverviewTab extends Vue {
   border-top: 1px solid var(--border);
 }
 
-.pr-detail-checks-loading {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--text-secondary);
-  font-size: 13px;
-}
-
 .pr-detail-checks-list {
   list-style: none;
   display: flex;
@@ -980,7 +933,6 @@ export default class PrOverviewTab extends Vue {
   width: 20px;
   text-align: center;
   font-weight: 700;
-  flex-shrink: 0;
 
   &.check-passed { color: var(--accent-green); }
   &.check-failed { color: var(--accent-red); }
@@ -997,11 +949,6 @@ export default class PrOverviewTab extends Vue {
 }
 
 .pr-detail-check-name {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   color: var(--text-primary);
 
   a {
@@ -1016,7 +963,6 @@ export default class PrOverviewTab extends Vue {
   color: var(--text-tertiary);
   font-size: 12px;
   text-transform: capitalize;
-  flex-shrink: 0;
 }
 
 .pr-detail-annotations {
@@ -1058,20 +1004,8 @@ export default class PrOverviewTab extends Vue {
   line-height: 1.4;
 }
 
-.pr-detail-stat-grid {
-  display: flex;
-  gap: 12px;
-  text-align: center;
-}
-
 .pr-detail-stat-grid > * {
   flex: 1;
-}
-
-.pr-detail-stat {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
 }
 
 .pr-detail-stat-value {
@@ -1091,45 +1025,13 @@ export default class PrOverviewTab extends Vue {
 }
 
 .pr-detail-stat-branch-wrap {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 6px;
-  font-size: 13px;
-  font-weight: 600;
-  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace;
-  line-height: 1.35;
   word-break: break-all;
 }
 
-.pr-detail-branch-arrow {
-  flex-shrink: 0;
-  color: var(--text-tertiary);
-  font-weight: 500;
-}
-
-.pr-detail-branch-piece {
-  color: var(--text-primary);
-  min-width: 0;
-}
-
-.pr-detail-labels-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 12px;
-}
-
 .pr-detail-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  font-weight: 500;
   padding: 3px 8px;
   border: 1px solid;
   border-radius: 20px;
-  white-space: nowrap;
 }
 
 .pr-detail-label-remove {
@@ -1146,10 +1048,6 @@ export default class PrOverviewTab extends Vue {
   &:hover { opacity: 1; }
 }
 
-.pr-detail-add-label {
-  position: relative;
-}
-
 .pr-detail-label-dropdown {
   position: absolute;
   top: 100%;
@@ -1160,10 +1058,7 @@ export default class PrOverviewTab extends Vue {
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg);
-  z-index: 100;
   max-height: 260px;
-  display: flex;
-  flex-direction: column;
 }
 
 .pr-detail-label-search {
@@ -1185,10 +1080,7 @@ export default class PrOverviewTab extends Vue {
 }
 
 .pr-detail-label-option {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
+  padding: var(--u-2) var(--u-3);
   font-size: 13px;
   color: var(--text-primary);
   cursor: pointer;
@@ -1208,7 +1100,6 @@ export default class PrOverviewTab extends Vue {
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  flex-shrink: 0;
 }
 
 .pr-detail-empty {

@@ -1,27 +1,32 @@
 <template>
 	<section class="screen">
-		<div class="device-container">
-			<div class="device-step">
-				<span class="step-number">1</span>
+		<div
+			class="u-flex u-flex-col u-items-center u-justify-center u-flex-1 u-gap-5 u-p-screen u-text-center"
+		>
+			<div class="device-step u-flex u-items-center u-gap-3 u-fs-16 u-text-primary">
+				<span class="step-number u-flex u-items-center u-justify-center u-flex-shrink-0 u-fw-700">1</span>
 				<span class="step-text">Go to <strong>{{ url }}</strong></span>
 			</div>
 			<a :href="url" class="btn btn-secondary btn-open-link" @click.prevent="openUrl">
 				<span v-html="$icon('externalLink', 14)"></span> Open GitHub
 			</a>
-			<div class="device-step">
-				<span class="step-number">2</span>
+			<div class="device-step u-flex u-items-center u-gap-3 u-fs-16 u-text-primary">
+				<span class="step-number u-flex u-items-center u-justify-center u-flex-shrink-0 u-fw-700">2</span>
 				<span class="step-text">Enter this code:</span>
 			</div>
-			<div class="device-code-box">
+			<div class="device-code-box u-flex u-items-center u-gap-3-5 u-my-2">
 				<code ref="codeEl">{{ code }}</code>
 				<button
-					:class="['btn-copy', { copied: copyState === 'copied' }]"
+					class="btn-copy u-flex u-items-center u-justify-center u-flex-shrink-0"
+					:class="{ copied : copyState === 'copied' }"
 					title="Copy code"
 					@click="doCopy"
 					v-html="copyBtnHtml"
 				></button>
 			</div>
-			<div class="device-waiting">
+			<div
+				class="device-waiting u-flex u-items-center u-gap-2-5 u-fs-14 u-mt-2 u-text-tertiary"
+			>
 				<div class="spinner spinner-sm"></div>
 				<span>Waiting for authorization...</span>
 			</div>
@@ -31,14 +36,16 @@
 </template>
 
 <script lang="ts">
-import { Component, Prop, Vue } from 'vue-facing-decorator';
 import { iconSvg } from '@/lib/icons';
 
+import { Component, Prop, Vue } from 'vue-facing-decorator';
+
 /** OAuth device-flow screen showing the user code and a link to GitHub for authorization. */
-@Component({ emits: ['cancel'] })
+@Component({ emits : [ 'cancel' ] })
 export default class DeviceScreen extends Vue {
-	@Prop() code!: string;
-	@Prop() url!: string;
+
+	@Prop({ required : true }) readonly code!: string;
+	@Prop({ required : true }) readonly url!: string;
 
 	copyState = 'idle';
 
@@ -50,8 +57,11 @@ export default class DeviceScreen extends Vue {
 		try {
 			await navigator.clipboard.writeText(this.code);
 			this.copyState = 'copied';
-			setTimeout(() => { this.copyState = 'idle'; }, 2000);
-		} catch {
+			setTimeout(() => {
+				this.copyState = 'idle';
+			}, 2000);
+		}
+		catch {
 			const range = document.createRange();
 			range.selectNodeContents(this.$refs.codeEl as HTMLElement);
 			const sel = window.getSelection();
@@ -63,41 +73,18 @@ export default class DeviceScreen extends Vue {
 	openUrl() {
 		window.open(this.url, '_blank');
 	}
+
 }
 </script>
 
 <style>
-.device-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 80px 32px;
-  text-align: center;
-  gap: 20px;
-  flex: 1;
-  justify-content: center;
-}
-
-.device-step {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 16px;
-  color: var(--text-primary);
-}
-
 .step-number {
-  display: flex;
-  align-items: center;
-  justify-content: center;
   width: 30px;
   height: 30px;
   border-radius: 50%;
   background: var(--accent-blue);
   color: var(--btn-primary-fg);
   font-size: 14px;
-  font-weight: 700;
-  flex-shrink: 0;
 }
 
 .step-text {
@@ -115,14 +102,10 @@ export default class DeviceScreen extends Vue {
 }
 
 .device-code-box {
-  display: flex;
-  align-items: center;
-  gap: 14px;
   background: var(--bg-secondary);
   border: 2px solid var(--accent-blue);
   border-radius: var(--radius-lg);
-  padding: 20px 28px;
-  margin: 8px 0;
+  padding: var(--u-5) var(--u-7);
 
   code {
     font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', Menlo, monospace;
@@ -142,11 +125,7 @@ export default class DeviceScreen extends Vue {
   height: 36px;
   border-radius: var(--radius-sm);
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   transition: all var(--transition);
-  flex-shrink: 0;
 
   &:hover {
     color: var(--text-primary);
@@ -158,15 +137,6 @@ export default class DeviceScreen extends Vue {
     color: var(--accent-green);
     border-color: var(--accent-green);
   }
-}
-
-.device-waiting {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  color: var(--text-tertiary);
-  font-size: 14px;
-  margin-top: 8px;
 }
 
 .spinner-sm {
