@@ -15,9 +15,9 @@
     "useDefineForClassFields": false,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["src/client/*"]
     }
   },
-  "include": ["src/**/*.ts", "src/**/*.vue"],
-  "exclude": ["node_modules", "dist", "server"]
+  "include": ["src/client/**/*.ts", "src/client/**/*.vue"],
+  "exclude": ["node_modules", "dist", "src/server"]
 }

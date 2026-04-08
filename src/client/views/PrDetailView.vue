@@ -1,0 +1,1092 @@
+<template>
+  <div class="pr-detail-page">
+    <div v-if="loading" class="pr-detail-loading">
+      <div class="spinner"></div>
+      <p>Loading pull request...</p>
+    </div>
+
+    <div v-else-if="error" class="pr-detail-error">
+      <p>{{ error }}</p>
+      <button class="btn btn-secondary" @click="loadAll">Retry</button>
+    </div>
+
+    <template v-else-if="pr">
+      <div class="pr-detail-main">
+      <header class="pr-detail-header">
+        <div class="pr-detail-header-left">
+          <a href="/" class="pr-detail-back" title="Back to dashboard">&larr;</a>
+          <span :class="stateBadgeClass">{{ prStatusBadgeText }}</span>
+          <h1 class="pr-detail-title">{{ pr.title }}</h1>
+          <span class="pr-detail-author">
+            <img v-if="pr.user.avatar_url" :src="pr.user.avatar_url" class="pr-detail-avatar" />
+            {{ authorDisplayName }}
+          </span>
+        </div>
+        <div class="pr-detail-header-center">
+          <div class="pr-detail-tabs">
+            <button
+              :class="['pr-detail-tab', { active: activeTab === 'overview' }]"
+              @click="switchTab('overview')"
+            >
+              Overview
+            </button>
+            <button
+              :class="['pr-detail-tab', { active: activeTab === 'files' }]"
+              @click="switchTab('files')"
+            >
+              Files ({{ pr.changed_files }})
+            </button>
+          </div>
+          <span v-if="files.length" :class="reviewProgressClass">
+            <span class="pr-detail-review-bar-track">
+              <span class="pr-detail-review-bar-fill" :style="{ width: reviewPct + '%' }"></span>
+            </span>
+            <span class="pr-detail-review-pct">{{ reviewPct }}%</span>
+          </span>
+          <button
+            v-if="activeTab === 'overview' && showMergePrButton"
+            class="pr-merge-btn has-tooltip"
+            data-tooltip="Squash all commits into one and merge into the base branch (same as GitHub's squash merge)."
+            :disabled="mergingPr"
+            @click="openMergeConfirm"
+          >
+            <span v-if="mergingPr" class="async-loader"></span>
+            <template v-else>Merge PR</template>
+          </button>
+          <button
+            v-if="showApproveInHeader"
+            class="pr-approve-btn"
+            :disabled="approvingPr"
+            @click="approvePr"
+          >
+            <span v-if="approvingPr" class="async-loader"></span>
+            <template v-else>&#10003; Approve</template>
+          </button>
+        </div>
+        <div class="pr-detail-header-right">
+          <template v-if="pendingComments.length">
+            <button class="pr-review-discard-btn" @click="discardAllPending" title="Discard all pending comments">&times;</button>
+            <button
+              class="pr-review-submit-btn"
+              :disabled="submittingReview"
+              @click="submitReview"
+            >
+              <span v-if="submittingReview" class="async-loader"></span>
+              Submit Review ({{ pendingComments.length }})
+            </button>
+          </template>
+          <span
+            class="pr-detail-control-wrap has-tooltip"
+            data-tooltip="App colours: light, dark, or Auto (follow system).&#10;Saved in this browser."
+          >
+            <appearance-select class="pr-detail-appearance" />
+          </span>
+          <span
+            class="pr-detail-control-wrap has-tooltip"
+            data-tooltip="Syntax highlighting theme for code in the diff (matches current app mode).&#10;Your choice is saved per light and dark mode."
+          >
+            <select class="pr-detail-tab-size" :value="hljsTheme" @change="hljsTheme = ($event.target as HTMLSelectElement).value">
+              <option v-for="t in hljsThemesFiltered" :key="t.id" :value="t.id">{{ t.label }}</option>
+            </select>
+          </span>
+          <span
+            class="pr-detail-control-wrap has-tooltip"
+            data-tooltip="Font size for line numbers and code in the Files tab.&#10;Saved in this browser."
+          >
+            <select class="pr-detail-tab-size" :value="diffFontSize" @change="diffFontSize = +($event.target as HTMLSelectElement).value">
+              <option v-for="p in diffFontSizePresets" :key="p.value" :value="p.value">{{ p.label }}</option>
+            </select>
+          </span>
+          <span
+            class="pr-detail-control-wrap has-tooltip"
+            data-tooltip="How many spaces wide each tab character appears in diff code.&#10;Saved in this browser."
+          >
+            <select class="pr-detail-tab-size" :value="tabSize" @change="tabSize = +($event.target as HTMLSelectElement).value">
+              <option :value="2">2 spaces</option>
+              <option :value="4">4 spaces</option>
+              <option :value="8">8 spaces</option>
+            </select>
+          </span>
+          <a :href="pr.html_url" target="_blank" rel="noopener" class="pr-detail-github-link">GitHub &rarr;</a>
+        </div>
+      </header>
+
+      <div class="pr-detail-tab-shell">
+      <pr-overview-tab
+        v-if="activeTab === 'overview'"
+        :pr="pr"
+        :checks="checks"
+        :checks-loading="checksLoading"
+        :repo-labels="repoLabels"
+        :review-comments="reviewComments"
+        :issue-comments="issueComments"
+        :comments-loading="reviewCommentsLoading"
+        @add-label="addLabel"
+        @remove-label="removeLabel"
+        @comments-updated="onCommentsUpdated"
+      />
+      <pr-files-tab
+        v-else-if="activeTab === 'files'"
+        :files="files"
+        :files-loading="filesLoading"
+        :owner="owner"
+        :repo="repo"
+        :base-ref="pr.base.sha"
+        :head-ref="pr.head.sha"
+        :initial-file-index="initialFileIndex"
+        :pr-title="pr.title"
+        :pr-number="pr.number"
+        :pr-author-login="pr.user.login"
+        :tab-size="tabSize"
+        :diff-font-size="diffFontSize"
+        :viewed-files="viewedFiles"
+        :pr-node-id="prNodeId"
+        :review-comments="reviewComments"
+        :pending-comments="pendingComments"
+        :commit-id="pr.head.sha"
+        @update:file-index="onFileIndexChange"
+        @update:viewed="onViewedChange"
+        @add-pending="onAddPending"
+        @remove-pending="onRemovePending"
+        @edit-pending="onEditPending"
+        @comments-updated="onCommentsUpdated"
+      />
+      </div>
+      </div>
+
+      <Teleport to="body">
+        <div
+          v-if="mergeConfirmOpen && pr"
+          class="pr-merge-confirm-backdrop"
+          @click.self="closeMergeConfirm"
+        >
+          <div
+            class="pr-merge-confirm-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="pr-merge-confirm-title"
+          >
+            <h2 id="pr-merge-confirm-title" class="pr-merge-confirm-title">Merge pull request?</h2>
+            <p class="pr-merge-confirm-body">
+              This will squash all commits into one and merge
+              <span class="pr-merge-confirm-repo">{{ owner }}/{{ repo }}</span>
+              <strong>#{{ pr.number }}</strong> into
+              <strong>{{ pr.base.ref }}</strong>.
+            </p>
+            <p v-if="mergeConfirmError" class="pr-merge-confirm-error">{{ mergeConfirmError }}</p>
+            <div class="pr-merge-confirm-actions">
+              <button
+                type="button"
+                class="btn btn-secondary"
+                :disabled="mergingPr"
+                @click="closeMergeConfirm"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                class="btn pr-merge-confirm-submit"
+                :disabled="mergingPr"
+                @click="confirmMergePr"
+              >
+                <span v-if="mergingPr" class="async-loader"></span>
+                <template v-else>Squash and merge</template>
+              </button>
+            </div>
+          </div>
+        </div>
+      </Teleport>
+    </template>
+  </div>
+</template>
+
+<script lang="ts">
+import { Component, Prop, Vue, Watch } from 'vue-facing-decorator';
+import GitHubClient from '@/lib/githubClient';
+import type { CheckRunDetail, RepoLabel, PRFile, ReviewComment, PendingComment, IssueComment } from '@/lib/githubClient';
+import { getStoredToken } from '@/services/auth';
+import { timeAgo } from '@/lib/utils';
+import type { ResolvedScheme } from '@/lib/colorScheme';
+import { getResolvedScheme, subscribeColorScheme } from '@/lib/colorScheme';
+import {
+  hljsThemesForResolvedScheme,
+  getStoredHljsThemeId,
+  setStoredHljsThemeId,
+  loadHljsTheme,
+} from '@/lib/hljsTheme';
+
+@Component({ emits: ['update:fileIndex'] })
+export default class PrDetailView extends Vue {
+  @Prop() owner!: string;
+  @Prop() repo!: string;
+  @Prop() number!: string;
+  @Prop() tab!: string;
+
+  pr: any = null;
+  checks: CheckRunDetail[] = [];
+  repoLabels: RepoLabel[] = [];
+  files: PRFile[] = [];
+  loading = true;
+  checksLoading = true;
+  filesLoading = false;
+  error = '';
+  activeTab: 'overview' | 'files' = 'overview';
+  tabSize = parseInt(localStorage.getItem('diffTabSize') || '4', 10);
+  diffFontSize = (() => {
+    const raw = localStorage.getItem('diffFontSize');
+    const n = raw ? parseInt(raw, 10) : 12;
+    return [11, 12, 13, 14, 16].includes(n) ? n : 12;
+  })();
+  readonly diffFontSizePresets = [
+    { value: 11, label: 'x-small' },
+    { value: 12, label: 'small' },
+    { value: 13, label: 'medium' },
+    { value: 14, label: 'large' },
+    { value: 16, label: 'x-large' },
+  ] as const;
+  resolvedScheme: ResolvedScheme = getResolvedScheme();
+  hljsTheme = getStoredHljsThemeId(getResolvedScheme());
+  viewedFiles: Record<string, string> = {};
+  prNodeId = '';
+  reviewComments: ReviewComment[] = [];
+  issueComments: IssueComment[] = [];
+  reviewCommentsLoading = false;
+  pendingComments: PendingComment[] = [];
+  submittingReview = false;
+  approvingPr = false;
+  mergingPr = false;
+  mergeConfirmOpen = false;
+  mergeConfirmError = '';
+  reviewDecision: 'APPROVED' | 'CHANGES_REQUESTED' | 'REVIEW_REQUIRED' | null = null;
+
+  @Watch('tabSize')
+  onTabSizeChanged(val: number) {
+    localStorage.setItem('diffTabSize', String(val));
+  }
+
+  @Watch('diffFontSize')
+  onDiffFontSizeChanged(val: number) {
+    localStorage.setItem('diffFontSize', String(val));
+  }
+
+  @Watch('hljsTheme')
+  onHljsThemeChanged(val: string) {
+    setStoredHljsThemeId(this.resolvedScheme, val);
+    loadHljsTheme(val);
+  }
+
+  get hljsThemesFiltered() {
+    return hljsThemesForResolvedScheme(this.resolvedScheme);
+  }
+
+  readonly timeAgo = timeAgo;
+
+  private _checksTimer: ReturnType<typeof setInterval> | null = null;
+  private _unsubColorScheme: (() => void) | null = null;
+  private _originalTitle = '';
+
+  get prNumber(): number {
+    return parseInt(this.number, 10);
+  }
+
+  get stateBadgeClass(): string {
+    if (!this.pr) return 'pr-detail-badge';
+    if (this.pr.draft) return 'pr-detail-badge pr-detail-badge-draft';
+    if (this.pr.merged) return 'pr-detail-badge pr-detail-badge-merged';
+    if (this.pr.state === 'closed') return 'pr-detail-badge pr-detail-badge-closed';
+    return 'pr-detail-badge pr-detail-badge-open';
+  }
+
+  /** Header badge: open PRs show # only; draft / merged / closed add an explicit status. */
+  get prStatusBadgeText(): string {
+    if (!this.pr) return '';
+    const n = this.pr.number;
+    if (this.pr.draft) return `#${n} · Draft`;
+    if (this.pr.merged) return `#${n} · Merged`;
+    if (this.pr.state === 'closed') return `#${n} · Closed`;
+    return `#${n}`;
+  }
+
+  get authorDisplayName(): string {
+    if (!this.pr?.user?.login) return '';
+    return GitHubClient.getFirstName(this.pr.user.login);
+  }
+
+  get initialFileIndex(): number {
+    const q = this.$route.query.file;
+    const idx = typeof q === 'string' ? parseInt(q, 10) : NaN;
+    return isNaN(idx) ? 0 : idx;
+  }
+
+  get reviewedCount(): number {
+    return Object.values(this.viewedFiles).filter(s => s === 'VIEWED').length;
+  }
+
+  get reviewPct(): number {
+    const total = this.files.length;
+    if (!total) return 0;
+    return Math.round((this.reviewedCount / total) * 100);
+  }
+
+  get reviewProgressClass(): string {
+    const pct = this.reviewPct;
+    if (pct >= 100) return 'pr-detail-review-progress complete';
+    if (pct >= 50) return 'pr-detail-review-progress partial';
+    return 'pr-detail-review-progress low';
+  }
+
+  get showMergePrButton(): boolean {
+    if (!this.pr) return false;
+    if (this.pr.draft || this.pr.state !== 'open' || this.pr.merged) return false;
+    return this.reviewDecision === 'APPROVED';
+  }
+
+  /** Approve in header only on Files tab, same slot as Merge PR on Overview. */
+  get showApproveInHeader(): boolean {
+    if (this.activeTab !== 'files') return false;
+    if (!this.files.length) return false;
+    return this.reviewPct >= 100 && this.reviewDecision !== 'APPROVED';
+  }
+
+  mounted() {
+    this._originalTitle = document.title;
+    if (this.tab === 'files') {
+      this.activeTab = 'files';
+    }
+    const token = getStoredToken();
+    if (token) GitHubClient.setToken(token);
+    this.resolvedScheme = getResolvedScheme();
+    this.hljsTheme = getStoredHljsThemeId(this.resolvedScheme);
+    loadHljsTheme(this.hljsTheme);
+    this._unsubColorScheme = subscribeColorScheme(() => {
+      const next = getResolvedScheme();
+      this.resolvedScheme = next;
+      this.hljsTheme = getStoredHljsThemeId(next);
+      loadHljsTheme(this.hljsTheme);
+    });
+    this.loadAll();
+  }
+
+  beforeUnmount() {
+    this.stopChecksPolling();
+    this._unsubColorScheme?.();
+    this._unsubColorScheme = null;
+    document.title = this._originalTitle;
+  }
+
+  async loadAll() {
+    this.loading = true;
+    this.error = '';
+    try {
+      const [pr, decision] = await Promise.all([
+        GitHubClient.fetchPRDetail(this.owner, this.repo, this.prNumber),
+        GitHubClient.fetchPullRequestReviewDecision(this.owner, this.repo, this.prNumber),
+      ]);
+      this.pr = pr;
+      this.reviewDecision = decision;
+      document.title = `#${this.pr.number} ${this.pr.title}`;
+      if (pr.user?.login) {
+        await GitHubClient.fetchUserFirstNames([pr.user.login]);
+      }
+      this.loading = false;
+      this.loadChecks();
+      this.loadRepoLabels();
+      this.loadReviewComments();
+      if (this.activeTab === 'files') this.loadFiles();
+    } catch (e: any) {
+      this.error = e.message || 'Failed to load PR';
+      this.loading = false;
+    }
+  }
+
+  async loadChecks() {
+    this.checksLoading = true;
+    try {
+      this.checks = await GitHubClient.fetchDetailedChecks(this.owner, this.repo, this.prNumber);
+      const hasPending = this.checks.some(check => {
+        const passed = [ 'success', 'neutral', 'skipped' ].includes(check.conclusion ?? '');
+        const failed = [ 'failure', 'timed_out', 'cancelled', 'error' ].includes(check.conclusion ?? '');
+        return !passed && !failed;
+      });
+      if (hasPending) this.startChecksPolling();
+    } catch {
+      this.checks = [];
+    } finally {
+      this.checksLoading = false;
+    }
+  }
+
+  async loadRepoLabels() {
+    try {
+      this.repoLabels = await GitHubClient.fetchRepoLabels(this.owner, this.repo);
+    } catch {
+      this.repoLabels = [];
+    }
+  }
+
+  async loadFiles() {
+    if (this.files.length || this.filesLoading) return;
+    this.filesLoading = true;
+    try {
+      this.files = await GitHubClient.fetchPRFiles(this.owner, this.repo, this.prNumber);
+      this.loadViewedState();
+    } catch {
+      this.files = [];
+    } finally {
+      this.filesLoading = false;
+    }
+  }
+
+  async loadReviewComments() {
+    this.reviewCommentsLoading = true;
+    try {
+      const [rRev, rIss] = await Promise.allSettled([
+        GitHubClient.fetchPRReviewComments(this.owner, this.repo, this.prNumber),
+        GitHubClient.fetchPRIssueComments(this.owner, this.repo, this.prNumber),
+      ]);
+      this.reviewComments = rRev.status === 'fulfilled' ? rRev.value : [];
+      this.issueComments = rIss.status === 'fulfilled' ? rIss.value : [];
+    } finally {
+      this.reviewCommentsLoading = false;
+    }
+  }
+
+  async loadViewedState() {
+    try {
+      const result = await GitHubClient.fetchPRFilesViewedState(this.owner, this.repo, this.prNumber);
+      this.viewedFiles = result.viewedFiles;
+      this.prNodeId = result.prNodeId;
+    } catch {
+      this.viewedFiles = {};
+    }
+  }
+
+  switchTab(tab: 'overview' | 'files') {
+    this.activeTab = tab;
+    const base = `/pull-request/${this.owner}/${this.repo}/${this.number}/${tab}`;
+    this.$router.replace({ path: base });
+    if (tab === 'files') this.loadFiles();
+  }
+
+  onFileIndexChange(index: number) {
+    this.$router.replace({
+      path: `/pull-request/${this.owner}/${this.repo}/${this.number}/files`,
+      query: { file: String(index) },
+    });
+  }
+
+  onViewedChange(payload: { filename: string; state: string }) {
+    this.viewedFiles = { ...this.viewedFiles, [payload.filename]: payload.state };
+  }
+
+  startChecksPolling() {
+    this.stopChecksPolling();
+    this._checksTimer = setInterval(async () => {
+      try {
+        this.checks = await GitHubClient.fetchDetailedChecks(this.owner, this.repo, this.prNumber);
+        const hasPending = this.checks.some(c => {
+          const con = c.conclusion;
+          const passed = con === 'success' || con === 'neutral' || con === 'skipped';
+          const failed = con === 'failure' || con === 'timed_out' || con === 'cancelled' || con === 'error';
+          return !passed && !failed;
+        });
+        if (!hasPending) this.stopChecksPolling();
+      } catch {
+        this.stopChecksPolling();
+      }
+    }, 10000);
+  }
+
+  stopChecksPolling() {
+    if (this._checksTimer) {
+      clearInterval(this._checksTimer);
+      this._checksTimer = null;
+    }
+  }
+
+  async addLabel(name: string) {
+    const fullRepo = `${this.owner}/${this.repo}`;
+    try {
+      await GitHubClient.addLabel(fullRepo, this.prNumber, name);
+      const matched = this.repoLabels.find(l => l.name === name);
+      if (matched) {
+        this.pr.labels.push({ id: matched.id, name: matched.name, color: matched.color });
+      }
+    } catch (e: any) {
+      console.error('Failed to add label:', e);
+    }
+  }
+
+  async removeLabel(name: string) {
+    const fullRepo = `${this.owner}/${this.repo}`;
+    try {
+      await GitHubClient.removeLabel(fullRepo, this.prNumber, name);
+      this.pr.labels = this.pr.labels.filter((l: any) => l.name !== name);
+    } catch (e: any) {
+      console.error('Failed to remove label:', e);
+    }
+  }
+
+  onAddPending(comment: PendingComment) {
+    this.pendingComments = [...this.pendingComments, comment];
+  }
+
+  onRemovePending(id: string) {
+    this.pendingComments = this.pendingComments.filter(c => c.id !== id);
+  }
+
+  onEditPending(updated: PendingComment) {
+    this.pendingComments = this.pendingComments.map(c => c.id === updated.id ? updated : c);
+  }
+
+  onCommentsUpdated() {
+    this.loadReviewComments();
+  }
+
+  async submitReview() {
+    if (!this.pendingComments.length || this.submittingReview) return;
+    this.submittingReview = true;
+    try {
+      await GitHubClient.submitReview(this.owner, this.repo, this.prNumber, this.pr.head.sha, this.pendingComments);
+      this.pendingComments = [];
+      await this.loadReviewComments();
+    } catch (e: any) {
+      console.error('Failed to submit review:', e);
+    } finally {
+      this.submittingReview = false;
+    }
+  }
+
+  discardAllPending() {
+    this.pendingComments = [];
+  }
+
+  async approvePr() {
+    if (this.approvingPr) return;
+    this.approvingPr = true;
+    try {
+      await GitHubClient.submitReview(this.owner, this.repo, this.prNumber, this.pr.head.sha, [], 'APPROVE');
+      this.reviewDecision = await GitHubClient.fetchPullRequestReviewDecision(
+        this.owner,
+        this.repo,
+        this.prNumber,
+      );
+    } catch (e: any) {
+      console.error('Failed to approve PR:', e);
+    } finally {
+      this.approvingPr = false;
+    }
+  }
+
+  openMergeConfirm() {
+    if (this.mergingPr || !this.pr) return;
+    this.mergeConfirmError = '';
+    this.mergeConfirmOpen = true;
+  }
+
+  closeMergeConfirm() {
+    if (this.mergingPr) return;
+    this.mergeConfirmOpen = false;
+    this.mergeConfirmError = '';
+  }
+
+  async confirmMergePr() {
+    if (this.mergingPr || !this.pr) return;
+    this.mergeConfirmError = '';
+    this.mergingPr = true;
+    try {
+      await GitHubClient.mergePullRequestSquash(this.owner, this.repo, this.prNumber);
+      this.mergeConfirmOpen = false;
+      await this.loadAll();
+    } catch (e: any) {
+      console.error('Failed to merge PR:', e);
+      this.mergeConfirmError = e.message || 'Merge failed';
+    } finally {
+      this.mergingPr = false;
+    }
+  }
+}
+</script>
+
+<style>
+.pr-detail-page {
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.pr-detail-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.pr-detail-tab-shell {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.pr-detail-tab-shell > * {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.pr-detail-loading,
+.pr-detail-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 80px 0;
+  color: var(--text-secondary);
+}
+
+.pr-detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  gap: 16px;
+}
+
+.pr-detail-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.pr-detail-header-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+}
+
+.pr-detail-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  justify-content: flex-end;
+}
+
+.pr-detail-back {
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 18px;
+  line-height: 1;
+  transition: color var(--transition);
+  flex-shrink: 0;
+
+  &:hover { color: var(--text-primary); }
+}
+
+.pr-detail-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin: 0;
+}
+
+.pr-detail-badge {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 20px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.pr-detail-badge-open {
+  background: var(--accent-green-bg);
+  color: var(--accent-green);
+}
+
+.pr-detail-badge-closed {
+  background: var(--danger-bg-subtle);
+  color: var(--accent-red);
+}
+
+.pr-detail-badge-merged {
+  background: var(--accent-purple-bg);
+  color: var(--accent-purple);
+}
+
+.pr-detail-badge-draft {
+  background: var(--muted-bg);
+  color: var(--text-secondary);
+}
+
+.pr-detail-author {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.pr-detail-avatar {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+}
+
+.pr-detail-github-link {
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 13px;
+  white-space: nowrap;
+  transition: color var(--transition);
+
+  &:hover { color: var(--text-primary); }
+}
+
+.pr-detail-tabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: var(--bg-primary);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+  border: 1px solid var(--border);
+}
+
+.pr-detail-tab {
+  padding: 4px 12px;
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all var(--transition);
+  font-family: inherit;
+  white-space: nowrap;
+
+  &:hover { color: var(--text-secondary); }
+
+  &.active {
+    color: var(--text-primary);
+    background: var(--bg-tertiary);
+  }
+}
+
+.pr-detail-review-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 12px;
+  white-space: nowrap;
+}
+
+.pr-detail-review-bar-track {
+  width: 60px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--bg-tertiary);
+  overflow: hidden;
+}
+
+.pr-detail-review-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease, background 0.3s ease;
+}
+
+.pr-detail-review-pct {
+  font-size: 13px;
+  font-weight: 700;
+  min-width: 32px;
+}
+
+.pr-detail-review-progress.low {
+  .pr-detail-review-bar-fill { background: var(--text-tertiary); }
+  .pr-detail-review-pct { color: var(--text-secondary); }
+}
+
+.pr-detail-review-progress.partial {
+  .pr-detail-review-bar-fill { background: var(--accent-orange); }
+  .pr-detail-review-pct { color: var(--accent-orange); }
+}
+
+.pr-detail-review-progress.complete {
+  .pr-detail-review-bar-fill { background: var(--accent-green); }
+  .pr-detail-review-pct { color: var(--accent-green); }
+}
+
+.pr-approve-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--accent-green);
+  color: var(--btn-primary-fg);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--transition);
+  margin-left: 4px;
+}
+
+.pr-approve-btn:hover:not(:disabled) {
+  filter: brightness(1.15);
+}
+
+.pr-approve-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.pr-merge-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--accent-purple);
+  color: var(--btn-primary-fg);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--transition);
+  margin-left: 4px;
+}
+
+.pr-merge-btn:hover:not(:disabled) {
+  filter: brightness(1.12);
+}
+
+.pr-merge-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.pr-merge-confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--overlay-backdrop);
+  backdrop-filter: blur(2px);
+}
+
+.pr-merge-confirm-dialog {
+  width: 100%;
+  max-width: 420px;
+  padding: 22px 24px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+}
+
+.pr-merge-confirm-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 12px;
+  color: var(--text-primary);
+}
+
+.pr-merge-confirm-body {
+  margin: 0 0 16px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.pr-merge-confirm-repo {
+  color: var(--text-tertiary);
+  font-size: 13px;
+}
+
+.pr-merge-confirm-error {
+  margin: 0 0 16px;
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--accent-red);
+  background: var(--danger-bg-subtle);
+  border: 1px solid var(--danger-border);
+  border-radius: var(--radius-sm);
+}
+
+.pr-merge-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.pr-merge-confirm-submit {
+  background: var(--accent-purple);
+  color: var(--btn-primary-fg);
+  border-color: transparent;
+}
+
+.pr-merge-confirm-submit:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.pr-merge-confirm-submit:disabled {
+  opacity: 0.65;
+  cursor: default;
+}
+
+.pr-detail-control-wrap {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+}
+
+.pr-detail-control-wrap.has-tooltip {
+  position: relative;
+}
+
+.pr-detail-control-wrap.has-tooltip::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  left: auto;
+  transform: none;
+  padding: 6px 10px;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-family: inherit;
+  font-weight: 400;
+  line-height: 1.4;
+  white-space: pre;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-lg);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  z-index: 200;
+  max-width: min(280px, 70vw);
+  text-align: left;
+}
+
+.pr-detail-control-wrap.has-tooltip:hover::after {
+  opacity: 1;
+}
+
+.pr-detail-tab-size {
+  padding: 4px 24px 4px 8px;
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 16 16' fill='%238b949e'%3E%3Cpath d='M4.427 7.427l3.396 3.396a.25.25 0 0 0 .354 0l3.396-3.396A.25.25 0 0 0 11.396 7H4.604a.25.25 0 0 0-.177.427Z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 6px center;
+  transition: all var(--transition);
+
+  &:hover {
+    border-color: var(--border-hover);
+    color: var(--text-primary);
+  }
+
+  &:focus {
+    outline: none;
+    border-color: var(--focus-ring);
+    box-shadow: 0 0 0 1px var(--focus-ring);
+  }
+}
+
+.pr-review-submit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 14px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-fg);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--transition);
+
+  &:hover:not(:disabled) { background: var(--btn-primary-hover); }
+  &:disabled { opacity: 0.6; cursor: default; }
+}
+
+.pr-review-discard-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-tertiary);
+  font-size: 16px;
+  cursor: pointer;
+  transition: all var(--transition);
+
+  &:hover {
+    color: var(--accent-red);
+    border-color: var(--accent-red);
+    background: var(--danger-bg-subtle);
+  }
+}
+
+.pr-detail-appearance :deep(.appearance-select) {
+  padding: 4px 24px 4px 8px;
+  font-size: 12px;
+  max-width: 100px;
+  background-position: right 6px center;
+}
+
+.pr-detail-appearance :deep(.appearance-select:focus) {
+  border-color: var(--focus-ring);
+  box-shadow: 0 0 0 1px var(--focus-ring);
+}
+</style>

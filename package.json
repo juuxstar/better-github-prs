@@ -2,22 +2,25 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "concurrently \"vite\" \"tsx watch server/index.ts\"",
+    "dev": "concurrently \"vite\" \"tsx watch src/server/index.ts\"",
     "build": "vite build",
-    "start": "tsx server/index.ts",
+    "start": "tsx src/server/index.ts",
     "typecheck": "vue-tsc --noEmit",
     "typecheck:build": "vite build"
   },
   "dependencies": {
+    "dompurify": "^3.3.3",
     "express": "^4",
     "highlight.js": "^11.11.1",
     "http-proxy-middleware": "^3",
+    "marked": "^17.0.5",
     "vue": "^3.5",
     "vue-facing-decorator": "^3",
     "vue-router": "^4.6.4"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@types/dompurify": "^3.0.5",
     "@types/express": "^5",
     "@types/node": "^22",
     "@vitejs/plugin-vue": "^5",

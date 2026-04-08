@@ -20,9 +20,9 @@ export default tseslint.config(
     },
   },
 
-  // Source files (TS + Vue)
+  // Client (browser)
   {
-    files: ["**/*.{ts,vue}"],
+    files: ["src/client/**/*.{ts,vue}"],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: "module",
@@ -49,9 +49,9 @@ export default tseslint.config(
     },
   },
 
-  // Server files get Node globals
+  // Server + Node config files
   {
-    files: ["server/**/*.ts"],
+    files: ["src/server/**/*.ts", "vite.config.ts"],
     languageOptions: {
       globals: { ...globals.node },
     },

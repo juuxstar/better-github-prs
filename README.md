@@ -36,7 +36,7 @@ A web app that authenticates with your GitHub account and displays your open pul
 
 ### 2. Configure the Client ID
 
-Open `server/index.ts` and replace the `CLIENT_ID` constant with your own:
+Open `src/server/index.ts` and replace the `CLIENT_ID` constant with your own:
 
 ```typescript
 const CLIENT_ID = 'YOUR_GITHUB_CLIENT_ID';
@@ -67,31 +67,33 @@ githubPR/
   tsconfig.node.json
   vite.config.ts
   eslint.config.js
-  index.html                     Vite SPA entry point
-  server/
-    index.ts                     Express: OAuth proxy + GitHub API proxy + static serving
   src/
-    main.ts                      Creates Vue app, registers components, mounts
-    App.vue                      Root component — auth flow, data fetching, polling
-    env.d.ts                     TypeScript shims
-    assets/
-      dashboard.css              All styles (GitHub dark theme)
-    lib/
-      githubClient.ts            GitHub REST + GraphQL client, caches
-      icons.ts                   SVG icon definitions
-    services/
-      auth.ts                    Device flow auth via /api/auth/* endpoints
-    components/
-      AppHeader.vue              Header with repo select, type filter, team select, user info
-      AuthScreen.vue             Sign-in screen
-      CreatePrSection.vue        Create PRs from recent branches
-      DeviceScreen.vue           Device code verification UI
-      ErrorScreen.vue            Error display with retry
-      LoadingScreen.vue          Loading spinner
-      PrBoard.vue                Main board layout, PR categorization, drag-and-drop
-      PrColumn.vue               Reusable column with drag-and-drop support
-      PrItem.vue                 Single PR card with labels, checks, stats
-      RateLimitBanner.vue        Rate limit warning banner
+    server/
+      index.ts                   Express: OAuth proxy + GitHub API proxy + static serving
+    client/
+      index.html                 Vite SPA entry point
+      main.ts                    Creates Vue app, registers components, mounts
+      App.vue                    Root component — auth flow, data fetching, polling
+      env.d.ts                   TypeScript shims
+      assets/
+        dashboard.css            All styles (GitHub dark theme)
+      lib/
+        githubClient.ts          GitHub REST + GraphQL client, caches
+        icons.ts                 SVG icon definitions
+      services/
+        auth.ts                  Device flow auth via /api/auth/* endpoints
+      components/
+        AppHeader.vue            Header with repo select, type filter, team select, user info
+        AuthScreen.vue           Sign-in screen
+        CreatePrSection.vue      Create PRs from recent branches
+        DeviceScreen.vue         Device code verification UI
+        ErrorScreen.vue          Error display with retry
+        LoadingScreen.vue        Loading spinner
+        PrBoard.vue              Main board layout, PR categorization, drag-and-drop
+        PrColumn.vue             Reusable column with drag-and-drop support
+        PrItem.vue               Single PR card with labels, checks, stats
+        RateLimitBanner.vue      Rate limit warning banner
+        ...
 ```
 
 ## Architecture
@@ -127,7 +129,7 @@ All GitHub API calls go through the Express proxy at `/api/github/*`, which forw
 
 | Issue | Solution |
 |-------|----------|
-| "Failed to start device flow" | Verify your Client ID in `server/index.ts` and that Device Flow is enabled |
+| "Failed to start device flow" | Verify your Client ID in `src/server/index.ts` and that Device Flow is enabled |
 | "The device code has expired" | Codes expire after ~15 minutes — click sign in again |
 | "Authorization was denied" | You clicked Cancel on the GitHub page — try again |
 | "Session expired" | Sign out and sign in again |
