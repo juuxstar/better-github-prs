@@ -629,11 +629,15 @@ class GitHubAPI {
 
 	async fetchPRFilesViewedState(owner: string, repo: string, number: number): Promise<{ viewedFiles: Record<string, string>; prNodeId: string }> {
 		const QUERY = `
-      query($owner: String!, $repo: String!, $number: Int!) {
+      query($owner: String!, $repo: String!, $number: Int!, $cursor: String) {
         repository(owner: $owner, name: $repo) {
           pullRequest(number: $number) {
             id
-            files(first: 100) {
+            files(first: 100, after: $cursor) {
+              pageInfo {
+                hasNextPage
+                endCursor
+              }
               nodes {
                 path
                 viewerViewedState
@@ -643,13 +647,33 @@ class GitHubAPI {
         }
       }`;
 
-		const data = await this.graphql(QUERY, { owner, repo, number });
-		const pr   = data.repository.pullRequest;
 		const viewedFiles: Record<string, string> = {};
-		for (const file of pr.files.nodes) {
-			viewedFiles[file.path] = file.viewerViewedState;
+		let prNodeId              = '';
+		let cursor: string | null = null;
+
+		while (true) {
+			const data = await this.graphql(QUERY, { owner, repo, number, cursor });
+			const pr   = data.repository.pullRequest;
+			if (!pr) {
+				break;
+			}
+			prNodeId   = pr.id;
+			const conn = pr.files;
+			for (const file of conn.nodes || []) {
+				if (file.path) {
+					viewedFiles[file.path] = file.viewerViewedState;
+				}
+			}
+			if (!conn.pageInfo?.hasNextPage) {
+				break;
+			}
+			cursor = conn.pageInfo.endCursor || null;
+			if (!cursor) {
+				break;
+			}
 		}
-		return { viewedFiles, prNodeId : pr.id };
+
+		return { viewedFiles, prNodeId };
 	}
 
 	async markFileAsViewed(pullRequestId: string, path: string): Promise<void> {

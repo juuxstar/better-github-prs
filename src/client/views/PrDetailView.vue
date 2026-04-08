@@ -282,14 +282,14 @@
 import type { ResolvedScheme } from '@/lib/colorScheme';
 import { getResolvedScheme, subscribeColorScheme } from '@/lib/colorScheme';
 import type { CheckRunDetail, IssueComment, PendingComment, PRFile, RepoLabel, ReviewComment } from '@/lib/githubClient';
-import GitHubClient            from '@/lib/githubClient';
+import GitHubClient                                                                            from '@/lib/githubClient';
 import {
 	getStoredHljsThemeId,
 	hljsThemesForResolvedScheme,
 	loadHljsTheme,
 	setStoredHljsThemeId
 } from '@/lib/hljsTheme';
-import { isWhitespaceOnlyFileChange }           from '@/lib/patchDiff';
+import { isWhitespaceOnlyFileChange }                                                          from '@/lib/patchDiff';
 import { loadPendingReview, savePendingReview } from '@/lib/pendingReviewStorage';
 import { timeAgo }                              from '@/lib/utils';
 import { getStoredToken }                       from '@/services/auth';
@@ -314,11 +314,13 @@ export default class PrDetailView extends Vue {
 	error = '';
 	activeTab: 'overview' | 'files' = 'overview';
 	tabSize = parseInt(localStorage.getItem('diffTabSize') || '4', 10);
+
 	diffFontSize = (() => {
 		const raw = localStorage.getItem('diffFontSize');
 		const n   = raw ? parseInt(raw, 10) : 12;
 		return [ 11, 12, 13, 14, 16 ].includes(n) ? n : 12;
 	})();
+
 	readonly diffFontSizePresets = [
 		{ value : 11, label : 'x-small' },
 		{ value : 12, label : 'small' },
@@ -326,6 +328,7 @@ export default class PrDetailView extends Vue {
 		{ value : 14, label : 'large' },
 		{ value : 16, label : 'x-large' },
 	] as const;
+
 	resolvedScheme: ResolvedScheme = getResolvedScheme();
 	hljsTheme = getStoredHljsThemeId(getResolvedScheme());
 	viewedFiles: Record<string, string> = {};
@@ -581,7 +584,7 @@ export default class PrDetailView extends Vue {
 		this.filesLoading = true;
 		try {
 			this.files = await GitHubClient.fetchPRFiles(this.owner, this.repo, this.prNumber);
-			this.loadViewedState();
+			await this.loadViewedState();
 		}
 		catch {
 			this.files = [];
@@ -608,9 +611,25 @@ export default class PrDetailView extends Vue {
 
 	async loadViewedState() {
 		try {
-			const result     = await GitHubClient.fetchPRFilesViewedState(this.owner, this.repo, this.prNumber);
-			this.viewedFiles = result.viewedFiles;
-			this.prNodeId    = result.prNodeId;
+			const result      = await GitHubClient.fetchPRFilesViewedState(this.owner, this.repo, this.prNumber);
+			this.prNodeId     = result.prNodeId;
+			const byPath      = result.viewedFiles;
+			if (this.files.length) {
+				const merged: Record<string, string> = {};
+				for (const f of this.files) {
+					let state = byPath[f.filename];
+					if (state === undefined && f.previous_filename) {
+						state = byPath[f.previous_filename];
+					}
+					if (state !== undefined) {
+						merged[f.filename] = state;
+					}
+				}
+				this.viewedFiles = merged;
+			}
+			else {
+				this.viewedFiles = byPath;
+			}
 		}
 		catch {
 			this.viewedFiles = {};
@@ -809,6 +828,7 @@ export default class PrDetailView extends Vue {
 				await GitHubClient.markFileAsViewed(this.prNodeId, f.filename);
 				this.viewedFiles = { ...this.viewedFiles, [f.filename] : 'VIEWED' };
 			}
+			await this.loadViewedState();
 			this.whitespaceViewedConfirmOpen = false;
 		}
 		catch (e: any) {

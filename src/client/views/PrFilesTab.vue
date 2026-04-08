@@ -179,15 +179,10 @@
 import DiffMinimap   from '@/components/DiffMinimap.vue';
 import PrDiffTable   from '@/components/PrDiffTable.vue';
 import PrFilesNavBar from '@/components/PrFilesNavBar.vue';
-import {
-	buildConnectorPaths,
-	buildScrollSegmentsFromState,
-	maxVirtualScrollTop,
-	resolveScroll
-} from '@/composables/usePrDiffVirtualScroll';
+import { buildConnectorPaths, buildScrollSegmentsFromState, maxVirtualScrollTop, resolveScroll } from '@/composables/usePrDiffVirtualScroll';
 import { buildSplitLinesForFile, parsePatch }          from '@/lib/diffLineBuilder';
 import type { PendingComment, PRFile, ReviewComment }  from '@/lib/githubClient';
-import GitHubClient                           from '@/lib/githubClient';
+import GitHubClient                                    from '@/lib/githubClient';
 import { parseCommentType }                            from '@/lib/githubClient';
 import { computeCommonBlocks }                         from '@/lib/patchDiff';
 import type { CommentThread, DiffLine, ScrollSegment } from '@/lib/prDiffTypes';
