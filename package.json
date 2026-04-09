@@ -1,40 +1,43 @@
 {
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "dev": "concurrently \"vite\" \"tsx watch src/server/index.ts\"",
-    "build": "vite build",
-    "start": "tsx src/server/index.ts",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
-    "typecheck": "vue-tsc --noEmit",
-    "typecheck:build": "vite build"
-  },
-  "dependencies": {
-    "dompurify": "^3.3.3",
-    "express": "^4",
-    "highlight.js": "^11.11.1",
-    "http-proxy-middleware": "^3",
-    "marked": "^17.0.5",
-    "vue": "^3.5",
-    "vue-facing-decorator": "^3",
-    "vue-router": "^4.6.4"
-  },
-  "devDependencies": {
-    "@frontlobby/eslint-config-lcb": "github:frontlobby/eslint-config-lcb#64f7d827dad1e206cd49f6b906203825f9f99ff1",
-    "@eslint/js": "^10.0.1",
-    "@types/dompurify": "^3.0.5",
-    "@types/express": "^5",
-    "@types/node": "^22",
-    "@vitejs/plugin-vue": "^5",
-    "concurrently": "^9",
-    "eslint": "^10.0.2",
-    "eslint-plugin-vue": "^10.8.0",
-    "globals": "^17.3.0",
-    "tsx": "^4",
-    "typescript": "^5",
-    "typescript-eslint": "^8.56.1",
-    "vite": "^6",
-    "vue-tsc": "^2"
-  }
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"dev": "concurrently \"vite\" \"tsx watch src/server/index.ts\"",
+		"build": "vite build",
+		"start": "tsx src/server/index.ts",
+		"lint": "eslint .",
+		"lint:fix": "eslint . --fix",
+		"format": "prettier --write .",
+		"format:check": "prettier --check .",
+		"typecheck": "vue-tsc --noEmit",
+		"typecheck:build": "vite build"
+	},
+	"dependencies": {
+		"dompurify": "^3.3.3",
+		"express": "^4",
+		"highlight.js": "^11.11.1",
+		"http-proxy-middleware": "^3",
+		"marked": "^17.0.5",
+		"vue": "^3.5",
+		"vue-facing-decorator": "^3",
+		"vue-router": "^4.6.4"
+	},
+	"devDependencies": {
+		"@eslint/js": "^10.0.1",
+		"@frontlobby/eslint-config-lcb": "github:frontlobby/eslint-config-lcb#64f7d827dad1e206cd49f6b906203825f9f99ff1",
+		"@types/dompurify": "^3.0.5",
+		"@types/express": "^5",
+		"@types/node": "^22",
+		"@vitejs/plugin-vue": "^5",
+		"concurrently": "^9",
+		"eslint": "^10.0.2",
+		"eslint-plugin-vue": "^10.8.0",
+		"globals": "^17.3.0",
+		"prettier": "3.4.2",
+		"tsx": "^4",
+		"typescript": "^5",
+		"typescript-eslint": "^8.56.1",
+		"vite": "^6",
+		"vue-tsc": "^2"
+	}
 }

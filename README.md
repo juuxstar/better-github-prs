@@ -27,9 +27,9 @@ A web app that authenticates with your GitHub account and displays your open pul
 1. Go to [GitHub Developer Settings](https://github.com/settings/developers)
 2. Click **"New OAuth App"**
 3. Fill in the form:
-   - **Application name**: `GitHub PR Dashboard`
-   - **Homepage URL**: `http://localhost:5173`
-   - **Authorization callback URL**: `http://localhost:5173` (not actually used by the device flow)
+    - **Application name**: `GitHub PR Dashboard`
+    - **Homepage URL**: `http://localhost:5173`
+    - **Authorization callback URL**: `http://localhost:5173` (not actually used by the device flow)
 4. Click **"Register application"**
 5. Note your **Client ID**
 6. Scroll down, check **"Enable Device Flow"**, and save
@@ -39,7 +39,7 @@ A web app that authenticates with your GitHub account and displays your open pul
 Open `src/server/index.ts` and replace the `CLIENT_ID` constant with your own:
 
 ```typescript
-const CLIENT_ID = 'YOUR_GITHUB_CLIENT_ID';
+const CLIENT_ID = "YOUR_GITHUB_CLIENT_ID";
 ```
 
 ### 3. Install and Run
@@ -111,12 +111,12 @@ All GitHub API calls go through the Express proxy at `/api/github/*`, which forw
 
 ## Scripts
 
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | Start Vite dev server + Express server concurrently |
-| `npm run build` | Build frontend to `dist/` |
-| `npm start` | Run Express serving `dist/` + API proxy (production) |
-| `npm run typecheck` | Run `vue-tsc` type checking |
+| Command             | Description                                          |
+| ------------------- | ---------------------------------------------------- |
+| `npm run dev`       | Start Vite dev server + Express server concurrently  |
+| `npm run build`     | Build frontend to `dist/`                            |
+| `npm start`         | Run Express serving `dist/` + API proxy (production) |
+| `npm run typecheck` | Run `vue-tsc` type checking                          |
 
 ## Security Notes
 
@@ -127,14 +127,14 @@ All GitHub API calls go through the Express proxy at `/api/github/*`, which forw
 
 ## Troubleshooting
 
-| Issue | Solution |
-|-------|----------|
+| Issue                         | Solution                                                                       |
+| ----------------------------- | ------------------------------------------------------------------------------ |
 | "Failed to start device flow" | Verify your Client ID in `src/server/index.ts` and that Device Flow is enabled |
-| "The device code has expired" | Codes expire after ~15 minutes — click sign in again |
-| "Authorization was denied" | You clicked Cancel on the GitHub page — try again |
-| "Session expired" | Sign out and sign in again |
-| No PRs showing | Ensure you have open PRs and the `repo` scope was granted |
-| CORS errors | Make sure the Express server is running (`npm run dev` starts both) |
+| "The device code has expired" | Codes expire after ~15 minutes — click sign in again                           |
+| "Authorization was denied"    | You clicked Cancel on the GitHub page — try again                              |
+| "Session expired"             | Sign out and sign in again                                                     |
+| No PRs showing                | Ensure you have open PRs and the `repo` scope was granted                      |
+| CORS errors                   | Make sure the Express server is running (`npm run dev` starts both)            |
 
 ## License
 

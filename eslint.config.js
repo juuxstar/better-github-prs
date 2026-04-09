@@ -16,7 +16,7 @@ export default [
 			parser: vueEslintParser,
 			parserOptions: {
 				parser: tseslint.parser,
-				project: ["./tsconfig.json"],
+				projectService: true,
 				extraFileExtensions: [".vue"],
 				tsconfigRootDir: import.meta.dirname,
 			},
@@ -27,7 +27,7 @@ export default [
 		languageOptions: {
 			parser: tseslint.parser,
 			parserOptions: {
-				project: ["./tsconfig.json"],
+				projectService: true,
 				tsconfigRootDir: import.meta.dirname,
 			},
 		},
@@ -74,13 +74,7 @@ export default [
 			"simple-import-sort/imports": [
 				"error",
 				{
-					groups: [
-						["^\\u0000"],
-						["^node:"],
-						["^@/"],
-						["^@?\\w"],
-						["^\\."],
-					],
+					groups: [["^\\u0000"], ["^node:"], ["^@/"], ["^@?\\w"], ["^\\."]],
 				},
 			],
 		},
@@ -160,10 +154,7 @@ export default [
 		},
 		rules: {
 			"no-console": "warn",
-			"@typescript-eslint/no-unused-vars": [
-				"warn",
-				{ argsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_" },
-			],
+			"@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_" }],
 			"@typescript-eslint/no-explicit-any": "off",
 			"@typescript-eslint/no-non-null-assertion": "off",
 

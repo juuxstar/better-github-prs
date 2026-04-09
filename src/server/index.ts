@@ -53,27 +53,30 @@ app.post('/api/auth/poll-token', async function(req, res) {
 
 // --- GitHub API proxy ---
 
-app.use('/api/github', createProxyMiddleware({
-	target       : 'https://api.github.com',
-	changeOrigin : true,
-	pathRewrite  : { '^/api/github' : '' },
-	on           : {
-		proxyReq(proxyReq, req) {
-			const auth = req.headers.authorization;
-			if (auth) {
-				proxyReq.setHeader('Authorization', auth);
-			}
+app.use(
+	'/api/github',
+	createProxyMiddleware({
+		target       : 'https://api.github.com',
+		changeOrigin : true,
+		pathRewrite  : { '^/api/github' : '' },
+		on           : {
+			proxyReq(proxyReq, req) {
+				const auth = req.headers.authorization;
+				if (auth) {
+					proxyReq.setHeader('Authorization', auth);
+				}
 
-			// Express.json() consumes the raw body stream before the proxy sees it,
-			// so re-serialize and rewrite Content-Length for POST/PATCH/PUT requests.
-			if (req.body && typeof req.body === 'object' && Object.keys(req.body).length > 0) {
-				const bodyData = JSON.stringify(req.body);
-				proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData).toString());
-				proxyReq.write(bodyData);
-			}
+				// Express.json() consumes the raw body stream before the proxy sees it,
+				// so re-serialize and rewrite Content-Length for POST/PATCH/PUT requests.
+				if (req.body && typeof req.body === 'object' && Object.keys(req.body).length > 0) {
+					const bodyData = JSON.stringify(req.body);
+					proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData).toString());
+					proxyReq.write(bodyData);
+				}
+			},
 		},
-	},
-}));
+	})
+);
 
 // --- Serve SPA in production ---
 

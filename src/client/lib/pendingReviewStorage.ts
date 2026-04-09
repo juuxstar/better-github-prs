@@ -1,4 +1,4 @@
-import type { CommentType, PendingComment } from '@/lib/githubClient';
+import type { CommentType, PendingComment } from '@/lib/api/githubClient';
 
 const STORAGE_PREFIX = 'githubPR:pendingReview:';
 const FORMAT_VERSION = 1;

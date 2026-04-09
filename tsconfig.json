@@ -1,23 +1,23 @@
 {
-  "compilerOptions": {
-    "target": "ES2022",
-    "module": "ESNext",
-    "moduleResolution": "bundler",
-    "strict": true,
-    "jsx": "preserve",
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "esModuleInterop": true,
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "skipLibCheck": true,
-    "noEmit": true,
-    "experimentalDecorators": true,
-    "useDefineForClassFields": false,
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["src/client/*"]
-    }
-  },
-  "include": ["src/client/**/*.ts", "src/client/**/*.vue"],
-  "exclude": ["node_modules", "dist", "src/server"]
+	"compilerOptions": {
+		"target": "ES2022",
+		"module": "ESNext",
+		"moduleResolution": "bundler",
+		"strict": true,
+		"jsx": "preserve",
+		"resolveJsonModule": true,
+		"isolatedModules": true,
+		"esModuleInterop": true,
+		"lib": ["ES2022", "DOM", "DOM.Iterable"],
+		"skipLibCheck": true,
+		"noEmit": true,
+		"experimentalDecorators": true,
+		"useDefineForClassFields": false,
+		"baseUrl": ".",
+		"paths": {
+			"@/*": ["src/client/*"]
+		}
+	},
+	"include": ["src/client/**/*.ts", "src/client/**/*.vue"],
+	"exclude": ["node_modules", "dist", "src/server"]
 }
