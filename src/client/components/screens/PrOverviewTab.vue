@@ -1,27 +1,80 @@
 <template>
 	<div class="pr-detail-overview u-flex u-flex-col u-flex-1 u-min-h-0 u-overflow-hidden">
-		<div class="pr-detail-body-grid u-grid u-gap-4 u-flex-1 u-min-h-0 u-overflow-y-auto u-items-stretch">
-			<section class="pr-detail-col-section pr-detail-col-main u-flex u-flex-col u-gap-4 u-min-w-0">
-				<div class="pr-detail-description card pr-detail-overview-gutter">
+		<div class="pr-detail-body-grid u-grid u-flex-1 u-min-h-0 u-overflow-y-auto u-items-stretch">
+			<section class="pr-detail-col-section pr-detail-col-main pr-detail-overview-stack u-flex u-flex-col u-min-w-0">
+				<div class="pr-detail-description card pr-detail-overview-gutter u-m-0">
 					<h2 class="u-flex-shrink-0">Description</h2>
 					<div v-if="pr.body" class="pr-detail-body-text markdown-body" v-html="pr.body_html || pr.body"></div>
-					<p v-else class="pr-detail-empty u-flex-shrink-0">No description provided</p>
+					<p v-else class="pr-detail-empty u-flex-shrink-0 u-fs-13 u-text-tertiary">No description provided</p>
 				</div>
 
-				<div class="pr-detail-stats card pr-detail-overview-gutter">
-					<h2 class="u-flex-shrink-0">Stats</h2>
+				<div class="pr-detail-actions-stats card pr-detail-overview-gutter u-flex u-flex-col u-gap-3 u-m-0">
+					<h2 class="u-flex-shrink-0">Actions &amp; stats</h2>
+					<div v-if="showActionsSection" class="pr-detail-actions-buttons u-flex u-flex-wrap u-items-center u-gap-2">
+						<button
+							v-if="showApproveAction"
+							type="button"
+							class="pr-overview-action-btn pr-overview-action-approve u-inline-flex u-items-center u-gap-1 u-py-1-5 u-px-3 u-fs-13 u-fw-600 u-cursor-pointer u-whitespace-nowrap"
+							:disabled="approvingPr"
+							title="Approve, clear changes-requested labels, and add ready to merge"
+							@click="$emit('approve-pr')"
+						>
+							<span v-if="approvingPr" class="async-loader"></span>
+							<template v-else>&#10003; Approve</template>
+						</button>
+						<span
+							v-if="showMergeAction"
+							class="pr-detail-control-wrap has-tooltip u-inline-flex u-items-center u-relative"
+							data-tooltip="Squash all commits into one and merge into the base branch (same as GitHub's squash merge)."
+						>
+							<button
+								type="button"
+								class="pr-overview-action-btn pr-overview-action-merge u-inline-flex u-items-center u-gap-1 u-py-1-5 u-px-3 u-fs-13 u-fw-600 u-cursor-pointer u-whitespace-nowrap"
+								:disabled="mergingPr"
+								@click="$emit('merge-pr')"
+							>
+								<span v-if="mergingPr" class="async-loader"></span>
+								<template v-else>Merge</template>
+							</button>
+						</span>
+						<button
+							v-if="showCloseAction"
+							type="button"
+							class="pr-overview-action-btn pr-overview-action-close u-inline-flex u-items-center u-gap-1 u-py-1-5 u-px-3 u-fs-13 u-fw-600 u-cursor-pointer u-whitespace-nowrap"
+							:disabled="closingPr"
+							@click="$emit('close-pr')"
+						>
+							<span v-if="closingPr" class="async-loader"></span>
+							<template v-else>Close</template>
+						</button>
+						<span
+							v-if="showDraftToggle"
+							class="pr-detail-control-wrap has-tooltip u-inline-flex u-items-center u-relative"
+							:data-tooltip="draftToggleTooltip"
+						>
+							<button
+								type="button"
+								class="pr-overview-action-btn pr-overview-action-draft u-inline-flex u-items-center u-gap-1 u-py-1-5 u-px-3 u-fs-13 u-fw-600 u-cursor-pointer u-whitespace-nowrap"
+								:disabled="togglingDraft"
+								@click="$emit('toggle-draft')"
+							>
+								<span v-if="togglingDraft" class="async-loader"></span>
+								<template v-else>{{ pr.draft ? 'Change to PR' : 'Change to Draft' }}</template>
+							</button>
+						</span>
+					</div>
 					<div class="pr-detail-stat-grid u-flex u-flex-wrap u-items-start u-gap-3 u-text-center">
 						<div class="pr-detail-stat pr-detail-stat-author u-flex u-flex-col u-gap-0-5">
-							<span class="pr-detail-stat-label">Author</span>
+							<span class="pr-detail-stat-label u-fs-11 u-text-tertiary u-uppercase u-tracking-wide">Author</span>
 							<div class="pr-detail-stat-author-row u-flex u-items-center u-gap-1-5 u-fs-13 u-fw-500 u-text-secondary">
 								<img v-if="pr.user?.avatar_url" :src="pr.user.avatar_url" class="pr-detail-avatar u-flex-shrink-0" alt="" />
 								<span class="u-min-w-0">{{ authorDisplayName }}</span>
 							</div>
 						</div>
 						<div class="pr-detail-stat pr-detail-stat-branch u-flex u-flex-col u-gap-0-5">
-							<span class="pr-detail-stat-label">Branch</span>
+							<span class="pr-detail-stat-label u-fs-11 u-text-tertiary u-uppercase u-tracking-wide">Branch</span>
 							<div
-								class="pr-detail-stat-value pr-detail-stat-branch-wrap u-flex u-flex-wrap u-items-center u-gap-1 u-fs-13 u-fw-600 u-font-mono u-leading-1-4"
+								class="pr-detail-stat-value pr-detail-stat-branch-wrap u-flex u-flex-wrap u-items-center u-gap-1 u-fs-12 u-fw-600 u-font-mono u-leading-1-4"
 								:title="branchCompareTitle"
 							>
 								<span class="pr-detail-branch-piece u-min-w-0 u-text-primary">{{ headBranchText }}</span>
@@ -30,49 +83,60 @@
 							</div>
 						</div>
 						<div class="pr-detail-stat u-flex u-flex-col u-gap-0-5">
-							<span class="pr-detail-stat-value">{{ pr.changed_files }}</span>
-							<span class="pr-detail-stat-label">Files</span>
+							<span class="pr-detail-stat-value u-fs-20 u-fw-600 u-text-primary">{{ pr.changed_files }}</span>
+							<span class="pr-detail-stat-label u-fs-11 u-text-tertiary u-uppercase u-tracking-wide">Files</span>
 						</div>
 						<div class="pr-detail-stat pr-detail-stat-add u-flex u-flex-col u-gap-0-5">
-							<span class="pr-detail-stat-value">+{{ pr.additions }}</span>
-							<span class="pr-detail-stat-label">Additions</span>
+							<span class="pr-detail-stat-value u-fs-20 u-fw-600">+{{ pr.additions }}</span>
+							<span class="pr-detail-stat-label u-fs-11 u-text-tertiary u-uppercase u-tracking-wide">Additions</span>
 						</div>
 						<div class="pr-detail-stat pr-detail-stat-del u-flex u-flex-col u-gap-0-5">
-							<span class="pr-detail-stat-value">&minus;{{ pr.deletions }}</span>
-							<span class="pr-detail-stat-label">Deletions</span>
+							<span class="pr-detail-stat-value u-fs-20 u-fw-600">&minus;{{ pr.deletions }}</span>
+							<span class="pr-detail-stat-label u-fs-11 u-text-tertiary u-uppercase u-tracking-wide">Deletions</span>
 						</div>
 					</div>
 				</div>
 
-				<div class="pr-detail-labels card pr-detail-overview-gutter">
+				<div class="pr-detail-labels card pr-detail-overview-gutter u-m-0">
 					<h2 class="u-flex-shrink-0">Labels</h2>
 					<div class="pr-detail-labels-list u-flex u-flex-wrap u-gap-1-5 u-mb-3">
 						<span v-for="label in pr.labels" :key="label.id" class="pr-detail-label u-inline-flex u-items-center u-gap-1 u-fs-12 u-fw-500 u-whitespace-nowrap" :style="labelStyle(label)">
 							{{ label.name }}
-							<button class="pr-detail-label-remove" :title="'Remove ' + label.name" @click="$emit('remove-label', label.name)">&times;</button>
+							<button class="pr-detail-label-remove u-fs-14 u-leading-1 u-cursor-pointer" :title="'Remove ' + label.name" @click="$emit('remove-label', label.name)">&times;</button>
 						</span>
-						<span v-if="!pr.labels.length" class="pr-detail-empty u-flex-shrink-0">No labels</span>
+						<span v-if="!pr.labels.length" class="pr-detail-empty u-flex-shrink-0 u-fs-13 u-text-tertiary">No labels</span>
 					</div>
 					<div class="pr-detail-add-label u-relative">
 						<div class="pr-detail-add-label-toggle">
-							<button type="button" class="pr-detail-compact-btn" @click="toggleLabelDropdown">+ Add label</button>
+							<button
+								type="button"
+								class="pr-detail-compact-btn u-inline-flex u-items-center u-justify-center u-gap-1-5 u-py-0-5 u-px-2-5 u-fs-11 u-fw-600 u-cursor-pointer"
+								@click="toggleLabelDropdown"
+							>
++ Add label
+</button>
 						</div>
-						<div v-if="labelDropdownOpen" class="pr-detail-label-dropdown u-flex u-flex-col u-z-100">
-							<input v-model="labelSearch" class="pr-detail-label-search" placeholder="Filter labels..." @keydown.escape="labelDropdownOpen = false" />
-							<ul class="pr-detail-label-options">
-								<li v-for="label in filteredRepoLabels" :key="label.id" class="pr-detail-label-option u-flex u-items-center u-gap-2" @click="handleAddLabel(label.name)">
+						<div v-if="labelDropdownOpen" class="pr-detail-label-dropdown u-absolute u-top-full u-left-0 u-right-0 u-mt-1 u-flex u-flex-col u-z-100">
+							<input v-model="labelSearch" class="pr-detail-label-search u-py-2 u-px-3 u-fs-13" placeholder="Filter labels..." @keydown.escape="labelDropdownOpen = false" />
+							<ul class="pr-detail-label-options u-list-none u-overflow-y-auto u-m-0 u-p-0">
+								<li
+									v-for="label in filteredRepoLabels"
+									:key="label.id"
+									class="pr-detail-label-option u-flex u-items-center u-gap-2 u-py-2 u-px-3 u-fs-13 u-text-primary u-cursor-pointer"
+									@click="handleAddLabel(label.name)"
+								>
 									<span class="pr-detail-label-swatch u-flex-shrink-0" :style="{ background : '#' + label.color }"></span>
 									{{ label.name }}
 								</li>
-								<li v-if="!filteredRepoLabels.length" class="pr-detail-label-option pr-detail-label-option-empty">No matching labels</li>
+								<li v-if="!filteredRepoLabels.length" class="pr-detail-label-option pr-detail-label-option-empty u-py-2 u-px-3 u-fs-13 u-text-tertiary">No matching labels</li>
 							</ul>
 						</div>
 					</div>
 				</div>
 			</section>
 
-			<section class="pr-detail-col-section pr-detail-col-comments u-flex u-flex-col u-gap-4 u-min-w-0">
-				<div class="pr-detail-comments card pr-detail-overview-gutter">
+			<section class="pr-detail-col-section pr-detail-col-comments pr-detail-overview-stack u-flex u-flex-col u-min-w-0">
+				<div class="pr-detail-comments card pr-detail-overview-gutter u-flex u-flex-col u-flex-1 u-min-h-0 u-overflow-hidden u-m-0">
 					<h2 class="u-flex-shrink-0">Comments ({{ commentsUnresolvedTotalLabel }})</h2>
 					<div v-if="commentsLoading" class="pr-detail-comments-loading u-flex u-items-center u-gap-2 u-fs-13 u-text-secondary u-flex-shrink-0">
 						<span class="async-loader"></span> Loading comments...
@@ -89,7 +153,7 @@
 							}"
 						>
 							<template v-if="item.kind === 'issue'">
-								<div class="pr-detail-comment-meta">
+								<div class="pr-detail-comment-meta u-flex u-flex-wrap u-items-center u-gap-2 u-mb-2">
 									<img :src="item.comment.user.avatar_url" class="pr-detail-comment-avatar u-flex-shrink-0" alt="" />
 									<span class="pr-detail-comment-author">{{ item.comment.user.login }}</span>
 									<span class="pr-detail-comment-time">{{ timeAgo(item.comment.created_at) }}</span>
@@ -99,16 +163,21 @@
 							</template>
 							<template v-else>
 								<template v-if="item.thread.resolved && !isResolvedThreadExpanded(item.thread.id)">
-									<div class="pr-detail-resolved-compact">
-										<button type="button" class="pr-detail-resolved-title-btn u-flex-grow-1 u-min-w-0" title="Show full thread" @click="expandResolvedThread(item.thread.id)">
-											<span class="pr-detail-resolved-chevron u-flex-shrink-0" aria-hidden="true">▸</span>
+									<div class="pr-detail-resolved-compact u-flex u-items-start u-justify-between u-gap-2-5">
+										<button
+											type="button"
+											class="pr-detail-resolved-title-btn u-flex u-items-start u-gap-1-5 u-p-0 u-m-0 u-flex-grow-1 u-min-w-0 u-text-left u-fs-12 u-cursor-pointer"
+											title="Show full thread"
+											@click="expandResolvedThread(item.thread.id)"
+										>
+											<span class="pr-detail-resolved-chevron u-flex-shrink-0 u-fs-11 u-mt-0-5" aria-hidden="true">▸</span>
 											<span class="pr-detail-resolved-title-text">{{ resolvedThreadBriefTitle(item.thread) }}</span>
 										</button>
 										<div class="pr-detail-resolved-compact-actions u-inline-flex u-items-start u-gap-2 u-flex-shrink-0">
 											<button
 												v-if="item.thread.threadNodeId"
 												type="button"
-												class="pr-detail-compact-btn"
+												class="pr-detail-compact-btn u-inline-flex u-items-center u-justify-center u-gap-1-5 u-py-0-5 u-px-2-5 u-fs-11 u-fw-600 u-cursor-pointer"
 												:disabled="resolveTogglingThreadId === item.thread.id"
 												title="Mark this review thread as open again"
 												@click="toggleThreadResolved(item.thread)"
@@ -121,12 +190,12 @@
 								</template>
 								<template v-else>
 									<div class="pr-detail-review-head">
-										<div v-if="item.thread.threadNodeId || item.thread.resolved" class="pr-detail-comment-card-top">
+										<div v-if="item.thread.threadNodeId || item.thread.resolved" class="pr-detail-comment-card-top u-flex u-items-center u-justify-end u-gap-2 u-mb-1-5">
 											<span class="pr-detail-comment-card-actions-tr u-inline-flex u-items-center u-gap-2 u-flex-shrink-0">
 												<button
 													v-if="item.thread.resolved"
 													type="button"
-													class="pr-detail-compact-btn pr-detail-collapse-thread-btn"
+													class="pr-detail-compact-btn pr-detail-collapse-thread-btn u-inline-flex u-items-center u-justify-center u-gap-1-5 u-py-0-5 u-px-2-5 u-fs-11 u-fw-600 u-cursor-pointer"
 													title="Show condensed view"
 													@click="collapseResolvedThread(item.thread.id)"
 												>
@@ -135,7 +204,7 @@
 												<button
 													v-if="item.thread.threadNodeId"
 													type="button"
-													class="pr-detail-compact-btn"
+													class="pr-detail-compact-btn u-inline-flex u-items-center u-justify-center u-gap-1-5 u-py-0-5 u-px-2-5 u-fs-11 u-fw-600 u-cursor-pointer"
 													:disabled="resolveTogglingThreadId === item.thread.id"
 													:title="item.thread.resolved ? 'Mark this review thread as open again' : 'Mark this review thread as resolved'"
 													@click="toggleThreadResolved(item.thread)"
@@ -145,7 +214,7 @@
 												</button>
 											</span>
 										</div>
-										<div class="pr-detail-comment-thread-header">
+										<div class="pr-detail-comment-thread-header u-flex u-flex-wrap u-items-center u-gap-2">
 											<span class="pr-detail-comment-path">{{ item.thread.path }}</span>
 											<template v-if="item.thread.line != null">
 												<span class="pr-detail-comment-sep">&middot;</span>
@@ -155,7 +224,7 @@
 										</div>
 									</div>
 									<div v-for="c in item.thread.comments" :key="c.id" class="pr-detail-comment-review-reply">
-										<div class="pr-detail-comment-meta">
+										<div class="pr-detail-comment-meta u-flex u-flex-wrap u-items-center u-gap-2 u-mb-2">
 											<img :src="c.user.avatar_url" class="pr-detail-comment-avatar u-flex-shrink-0" alt="" />
 											<span class="pr-detail-comment-author">{{ c.user.login }}</span>
 											<span class="pr-detail-comment-time">{{ timeAgo(c.created_at) }}</span>
@@ -167,7 +236,7 @@
 							</template>
 						</li>
 					</ul>
-					<p v-else class="pr-detail-empty u-flex-shrink-0">No comments on this pull request yet</p>
+					<p v-else class="pr-detail-empty u-flex-shrink-0 u-fs-13 u-text-tertiary">No comments on this pull request yet</p>
 				</div>
 			</section>
 
@@ -177,9 +246,9 @@
 					<div v-if="checksLoading" class="pr-detail-checks-loading u-flex u-items-center u-gap-2 u-fs-13 u-text-secondary u-flex-shrink-0">
 						<span class="async-loader"></span> Loading checks...
 					</div>
-					<ul v-else-if="checks.length" class="pr-detail-checks-list">
-						<li v-for="check in checks" :key="check.name" class="pr-detail-check-item">
-							<div class="pr-detail-check-row">
+					<ul v-else-if="checks.length" class="pr-detail-checks-list u-list-none u-flex u-flex-col u-gap-1-5">
+						<li v-for="check in checks" :key="check.name" class="pr-detail-check-item u-flex u-flex-col u-gap-0 u-py-2 u-px-2-5 u-fs-13">
+							<div class="pr-detail-check-row u-flex u-items-center u-gap-2-5 u-w-full">
 								<span
 									class="pr-detail-check-icon u-flex-shrink-0"
 									:class="{
@@ -194,8 +263,8 @@
 								</span>
 								<span class="pr-detail-check-conclusion u-flex-shrink-0">{{ checkLabel(check) }}</span>
 							</div>
-							<ul v-if="failureAnnotations(check).length" class="pr-detail-annotations">
-								<li v-for="(ann, idx) in failureAnnotations(check)" :key="idx" class="pr-detail-annotation">
+							<ul v-if="failureAnnotations(check).length" class="pr-detail-annotations u-list-none u-flex u-flex-col u-gap-1 u-w-full">
+								<li v-for="(ann, idx) in failureAnnotations(check)" :key="idx" class="pr-detail-annotation u-flex u-flex-col u-gap-0-5 u-py-1-5 u-px-2-5 u-fs-12">
 									<span class="pr-detail-annotation-location">{{ ann.path }}<template v-if="ann.startLine">:{{ ann.startLine }}</template></span>
 									<span v-if="ann.title" class="pr-detail-annotation-title">{{ ann.title }}</span>
 									<span class="pr-detail-annotation-message">{{ ann.message }}</span>
@@ -203,7 +272,7 @@
 							</ul>
 						</li>
 					</ul>
-					<p v-else class="pr-detail-empty u-flex-shrink-0">No checks found</p>
+					<p v-else class="pr-detail-empty u-flex-shrink-0 u-fs-13 u-text-tertiary">No checks found</p>
 				</div>
 			</section>
 		</div>
@@ -231,7 +300,7 @@ interface OverviewThread {
 
 type OverviewRow = { kind: 'issue'; key: string; sortTime: number; comment: IssueComment } | { kind: 'review-thread'; key: string; sortTime: number; thread: OverviewThread };
 
-@Component({ emits : [ 'add-label', 'remove-label', 'comments-updated' ] })
+@Component({ emits : [ 'add-label', 'remove-label', 'comments-updated', 'approve-pr', 'merge-pr', 'close-pr', 'toggle-draft' ] })
 export default class PrOverviewTab extends Vue {
 
 	@Prop({ required : true }) readonly pr!: any;
@@ -241,6 +310,12 @@ export default class PrOverviewTab extends Vue {
 	@Prop({ default : () => [] }) readonly reviewComments!: ReviewComment[];
 	@Prop({ default : () => [] }) readonly issueComments!: IssueComment[];
 	@Prop({ default : false }) readonly commentsLoading!: boolean;
+	@Prop({ default : null }) readonly reviewDecision!: 'APPROVED' | 'CHANGES_REQUESTED' | 'REVIEW_REQUIRED' | null;
+	@Prop({ default : false }) readonly showMergeAction!: boolean;
+	@Prop({ default : false }) readonly approvingPr!: boolean;
+	@Prop({ default : false }) readonly mergingPr!: boolean;
+	@Prop({ default : false }) readonly closingPr!: boolean;
+	@Prop({ default : false }) readonly togglingDraft!: boolean;
 
 	readonly timeAgo = timeAgo;
 
@@ -284,6 +359,29 @@ export default class PrOverviewTab extends Vue {
 			return '—';
 		}
 		return GitHubClient.getFirstName(this.pr.user.login);
+	}
+
+	get showApproveAction(): boolean {
+		return Boolean(this.pr && this.pr.state === 'open' && !this.pr.merged && this.reviewDecision !== 'APPROVED');
+	}
+
+	get showCloseAction(): boolean {
+		return Boolean(this.pr && this.pr.state === 'open' && !this.pr.merged);
+	}
+
+	get showDraftToggle(): boolean {
+		return Boolean(this.pr && this.pr.state === 'open' && !this.pr.merged);
+	}
+
+	get showActionsSection(): boolean {
+		return this.showApproveAction || this.showMergeAction || this.showCloseAction || this.showDraftToggle;
+	}
+
+	get draftToggleTooltip(): string {
+		if (!this.pr) {
+			return '';
+		}
+		return this.pr.draft ? 'Publish this pull request (remove draft), same as on GitHub.' : 'Convert to draft: stays open but is not ready for review until you publish.';
 	}
 
 	get reviewCommentThreads(): OverviewThread[] {
@@ -437,13 +535,11 @@ export default class PrOverviewTab extends Vue {
 	}
 
 	isCheckPassed(check: CheckRunDetail): boolean {
-		const c = check.conclusion;
-		return c === 'success' || c === 'neutral' || c === 'skipped';
+		return [ 'success', 'neutral', 'skipped' ].includes(check.conclusion ?? '');
 	}
 
 	isCheckFailed(check: CheckRunDetail): boolean {
-		const c = check.conclusion;
-		return c === 'failure' || c === 'timed_out' || c === 'cancelled' || c === 'error';
+		return [ 'failure', 'timed_out', 'cancelled', 'error' ].includes(check.conclusion ?? '');
 	}
 
 	checkIcon(check: CheckRunDetail): string {
@@ -495,24 +591,73 @@ export default class PrOverviewTab extends Vue {
 </script>
 
 <style>
-.pr-detail-body-grid {
-	grid-template-columns: repeat(3, minmax(0, 1fr));
+/* One spacing value: outer inset = padding; between sections = gap (each “half” meets in the middle). */
+.pr-detail-overview {
+	--pr-overview-section-spacing: var(--u-3);
 }
 
-.pr-detail-overview-gutter {
-	margin: 10px 8px;
+.pr-detail-body-grid {
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: var(--pr-overview-section-spacing);
+	padding: var(--pr-overview-section-spacing);
+	box-sizing: border-box;
+}
+
+.pr-detail-overview-stack {
+	gap: var(--pr-overview-section-spacing);
+}
+
+.pr-detail-actions-buttons .pr-overview-action-btn {
+	border-radius: var(--radius-sm);
+	font-family: inherit;
+	transition: all var(--transition);
+	border: 1px solid var(--border);
+	background: var(--bg-primary);
+	color: var(--text-secondary);
+}
+
+.pr-detail-actions-buttons .pr-overview-action-btn:hover:not(:disabled) {
+	color: var(--text-primary);
+	border-color: var(--text-tertiary);
+}
+
+.pr-detail-actions-buttons .pr-overview-action-btn:disabled {
+	opacity: 0.6;
+	cursor: default;
+}
+
+.pr-overview-action-approve {
+	border: none !important;
+	background: var(--accent-green) !important;
+	color: var(--btn-primary-fg) !important;
+}
+
+.pr-overview-action-approve:hover:not(:disabled) {
+	filter: brightness(1.12);
+}
+
+.pr-overview-action-merge {
+	border: none !important;
+	background: var(--accent-purple) !important;
+	color: var(--btn-primary-fg) !important;
+}
+
+.pr-overview-action-merge:hover:not(:disabled) {
+	filter: brightness(1.1);
+}
+
+.pr-overview-action-close {
+	border-color: var(--border) !important;
+	color: var(--accent-red) !important;
+}
+
+.pr-overview-action-close:hover:not(:disabled) {
+	background: var(--danger-bg-subtle) !important;
+	border-color: var(--accent-red) !important;
 }
 
 .pr-detail-col-comments {
 	min-height: 0;
-}
-
-.pr-detail-col-comments .pr-detail-comments.card {
-	flex: 1;
-	min-height: 0;
-	display: flex;
-	flex-direction: column;
-	overflow: hidden;
 }
 
 @media (max-width: 900px) {
@@ -521,13 +666,13 @@ export default class PrOverviewTab extends Vue {
 	}
 }
 
-.pr-detail-overview .pr-detail-stats .pr-detail-stat-grid > .pr-detail-stat-branch,
-.pr-detail-overview .pr-detail-stats .pr-detail-stat-grid > .pr-detail-stat-author {
+.pr-detail-overview .pr-detail-actions-stats .pr-detail-stat-grid > .pr-detail-stat-branch,
+.pr-detail-overview .pr-detail-actions-stats .pr-detail-stat-grid > .pr-detail-stat-author {
 	flex: 1 1 100%;
 	text-align: left;
 }
 
-.pr-detail-overview .pr-detail-stats .pr-detail-stat-grid > .pr-detail-stat:not(.pr-detail-stat-branch):not(.pr-detail-stat-author) {
+.pr-detail-overview .pr-detail-actions-stats .pr-detail-stat-grid > .pr-detail-stat:not(.pr-detail-stat-branch):not(.pr-detail-stat-author) {
 	flex: 1 1 0;
 	min-width: 0;
 	text-align: center;
@@ -702,26 +847,11 @@ html[data-color-scheme="light"] .pr-detail-overview .card > h2 {
 	box-shadow: 0 0 0 1px var(--label-green-glow);
 }
 
-.pr-detail-resolved-compact {
-	display: flex;
-	align-items: flex-start;
-	justify-content: space-between;
-	gap: 10px;
-}
-
 .pr-detail-resolved-title-btn {
-	display: flex;
-	align-items: flex-start;
-	gap: 6px;
-	padding: 0;
-	margin: 0;
 	border: none;
 	background: none;
 	color: var(--text-secondary);
-	font-size: 12px;
 	line-height: 1.45;
-	text-align: left;
-	cursor: pointer;
 	font-family: inherit;
 	transition: color var(--transition);
 
@@ -732,8 +862,6 @@ html[data-color-scheme="light"] .pr-detail-overview .card > h2 {
 
 .pr-detail-resolved-chevron {
 	color: var(--accent-green);
-	font-size: 11px;
-	margin-top: 2px;
 }
 
 .pr-detail-resolved-title-text {
@@ -742,15 +870,6 @@ html[data-color-scheme="light"] .pr-detail-overview .card > h2 {
 
 .pr-detail-comment-issue {
 	border-left: 3px solid var(--accent-blue);
-}
-
-.pr-detail-comment-meta,
-.pr-detail-comment-thread-header {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	gap: 8px;
-	margin-bottom: 8px;
 }
 
 .pr-detail-review-head {
@@ -765,30 +884,14 @@ html[data-color-scheme="light"] .pr-detail-overview .card > h2 {
 	border-bottom: none;
 }
 
-.pr-detail-comment-card-top {
-	display: flex;
-	align-items: center;
-	justify-content: flex-end;
-	gap: 8px;
-	margin-bottom: 6px;
-}
-
 .pr-detail-compact-btn {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	gap: 6px;
-	padding: 2px 10px;
 	min-height: 22px;
 	border: 1px solid var(--border);
 	border-radius: var(--radius-sm);
 	background: var(--bg-tertiary);
 	color: var(--text-secondary);
-	font-size: 11px;
-	font-weight: 600;
 	font-family: inherit;
 	line-height: 1.25;
-	cursor: pointer;
 	transition:
 		border-color var(--transition),
 		background var(--transition),
@@ -905,28 +1008,9 @@ html[data-color-scheme="light"] .pr-detail-overview .card > h2 {
 	border-top: 1px solid var(--border);
 }
 
-.pr-detail-checks-list {
-	list-style: none;
-	display: flex;
-	flex-direction: column;
-	gap: 6px;
-}
-
 .pr-detail-check-item {
-	display: flex;
-	flex-direction: column;
-	gap: 0;
-	padding: 8px 10px;
 	background: var(--bg-primary);
 	border-radius: var(--radius-sm);
-	font-size: 13px;
-}
-
-.pr-detail-check-row {
-	display: flex;
-	align-items: center;
-	gap: 10px;
-	width: 100%;
 }
 
 .pr-detail-check-icon {
@@ -977,24 +1061,14 @@ html[data-color-scheme="light"] .pr-detail-overview .card > h2 {
 }
 
 .pr-detail-annotations {
-	list-style: none;
 	margin-top: 6px;
 	padding-left: 30px;
-	display: flex;
-	flex-direction: column;
-	gap: 4px;
-	width: 100%;
 }
 
 .pr-detail-annotation {
-	display: flex;
-	flex-direction: column;
-	gap: 2px;
-	padding: 6px 10px;
 	background: var(--danger-row-bg);
 	border-left: 2px solid var(--accent-red);
 	border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-	font-size: 12px;
 }
 
 .pr-detail-annotation-location {
@@ -1019,24 +1093,11 @@ html[data-color-scheme="light"] .pr-detail-overview .card > h2 {
 	flex: 1;
 }
 
-.pr-detail-stat-value {
-	font-size: 20px;
-	font-weight: 600;
-	color: var(--text-primary);
-}
-
 .pr-detail-stat-add .pr-detail-stat-value {
 	color: var(--accent-green);
 }
 .pr-detail-stat-del .pr-detail-stat-value {
 	color: var(--accent-red);
-}
-
-.pr-detail-stat-label {
-	font-size: 11px;
-	color: var(--text-tertiary);
-	text-transform: uppercase;
-	letter-spacing: 0.5px;
 }
 
 .pr-detail-stat-branch-wrap {
@@ -1053,9 +1114,6 @@ html[data-color-scheme="light"] .pr-detail-overview .card > h2 {
 	background: none;
 	border: none;
 	color: inherit;
-	cursor: pointer;
-	font-size: 14px;
-	line-height: 1;
 	padding: 0 0 0 2px;
 	opacity: 0.6;
 	transition: opacity var(--transition);
@@ -1066,11 +1124,6 @@ html[data-color-scheme="light"] .pr-detail-overview .card > h2 {
 }
 
 .pr-detail-label-dropdown {
-	position: absolute;
-	top: 100%;
-	left: 0;
-	right: 0;
-	margin-top: 4px;
 	background: var(--bg-primary);
 	border: 1px solid var(--border);
 	border-radius: var(--radius-md);
@@ -1079,12 +1132,10 @@ html[data-color-scheme="light"] .pr-detail-overview .card > h2 {
 }
 
 .pr-detail-label-search {
-	padding: 8px 12px;
 	background: transparent;
 	border: none;
 	border-bottom: 1px solid var(--border);
 	color: var(--text-primary);
-	font-size: 13px;
 	outline: none;
 
 	&::placeholder {
@@ -1093,16 +1144,10 @@ html[data-color-scheme="light"] .pr-detail-overview .card > h2 {
 }
 
 .pr-detail-label-options {
-	list-style: none;
-	overflow-y: auto;
 	max-height: 200px;
 }
 
 .pr-detail-label-option {
-	padding: var(--u-2) var(--u-3);
-	font-size: 13px;
-	color: var(--text-primary);
-	cursor: pointer;
 	transition: background var(--transition);
 
 	&:hover {
@@ -1111,7 +1156,6 @@ html[data-color-scheme="light"] .pr-detail-overview .card > h2 {
 }
 
 .pr-detail-label-option-empty {
-	color: var(--text-tertiary);
 	cursor: default;
 
 	&:hover {
@@ -1125,8 +1169,4 @@ html[data-color-scheme="light"] .pr-detail-overview .card > h2 {
 	border-radius: 50%;
 }
 
-.pr-detail-empty {
-	color: var(--text-tertiary);
-	font-size: 13px;
-}
 </style>

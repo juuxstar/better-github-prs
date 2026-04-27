@@ -8,6 +8,59 @@ function rateLimitResetFromHeaders(resetHeader: string | null, retryAfter: strin
 	return null;
 }
 
+/** Build a readable message from GitHub REST error JSON (`message` + `errors`). */
+function formatGithubRestErrorMessage(status: number, body: any): string {
+	const fallback = `GitHub API error: ${status}`;
+	if (!body || typeof body !== 'object') {
+		return fallback;
+	}
+	const main             = typeof body.message === 'string' && body.message.trim() ? body.message.trim() : '';
+	const pieces: string[] = [];
+	if (Array.isArray(body.errors)) {
+		for (const e of body.errors) {
+			if (typeof e === 'string' && e.trim()) {
+				pieces.push(e.trim());
+			}
+			else if (e && typeof e === 'object' && typeof (e as { message?: string }).message === 'string') {
+				const m = (e as { message: string }).message.trim();
+				if (m) {
+					pieces.push(m);
+				}
+			}
+		}
+	}
+	if (main && pieces.length) {
+		return `${main}: ${pieces.join('; ')}`;
+	}
+	if (pieces.length) {
+		return pieces.join('; ');
+	}
+	if (main) {
+		return main;
+	}
+	return fallback;
+}
+
+/**
+ * GitHub merged PRs include `merged_at` and `merge_commit_sha`; `merged` can be missing or wrong in some responses.
+ * Derive a reliable boolean so the UI does not show merged work as still open.
+ */
+function normalizePullRequest(pr: any): any {
+	if (!pr || typeof pr !== 'object') {
+		return pr;
+	}
+	// Never treat as merged when GitHub says it was closed without merging.
+	if (pr.merged === false || pr.merged === 'false') {
+		return { ...pr, merged : false };
+	}
+	// Do not use `merge_commit_sha` alone: it can be set for test merges or other cases on closed, unmerged PRs.
+	const merged
+		= pr.merged === true
+		|| pr.merged === 'true'
+		|| (pr.merged_at != null && pr.merged_at !== '');
+	return { ...pr, merged : Boolean(merged) };
+}
+
 class GitHubAPI {
 
 	private token: string | null = null;
@@ -67,23 +120,27 @@ class GitHubAPI {
 				this.clear();
 				throw apiError('Session expired. Please sign in again.', { status : 401 });
 			}
+			const resetHeader = response.headers.get('x-ratelimit-reset');
+			const retryAfter  = response.headers.get('retry-after');
 			if (response.status === 403 || response.status === 429) {
-				const remaining   = response.headers.get('x-ratelimit-remaining');
-				const resetHeader = response.headers.get('x-ratelimit-reset');
-				const retryAfter  = response.headers.get('retry-after');
+				const remaining = response.headers.get('x-ratelimit-remaining');
 				if (remaining === '0' || response.status === 429 || retryAfter) {
 					const resetTime = rateLimitResetFromHeaders(resetHeader, retryAfter);
 					throw apiError('GitHub API rate limit exceeded', { status : response.status, rateLimitReset : resetTime });
 				}
-				const body = await response.json().catch(() => ({}) as any);
-				if (body.message?.toLowerCase().includes('rate limit')) {
-					throw apiError('GitHub API rate limit exceeded', {
-						status         : response.status,
-						rateLimitReset : resetHeader ? new Date(parseInt(resetHeader, 10) * 1000) : null,
-					});
-				}
 			}
-			throw apiError(`GitHub API error: ${response.status}`, { status : response.status });
+			const body = await response.json().catch(() => ({}) as any);
+			if (
+				(response.status === 403 || response.status === 429)
+				&& typeof body.message === 'string'
+				&& body.message.toLowerCase().includes('rate limit')
+			) {
+				throw apiError('GitHub API rate limit exceeded', {
+					status         : response.status,
+					rateLimitReset : resetHeader ? new Date(parseInt(resetHeader, 10) * 1000) : null,
+				});
+			}
+			throw apiError(formatGithubRestErrorMessage(response.status, body), { status : response.status });
 		}
 
 		return response.json();
@@ -475,9 +532,10 @@ class GitHubAPI {
 	}
 
 	async fetchPRDetail(owner: string, repo: string, number: number): Promise<any> {
-		return this.apiFetch(`/repos/${owner}/${repo}/pulls/${number}`, {
+		const pr = await this.apiFetch(`/repos/${owner}/${repo}/pulls/${number}`, {
 			headers : { Accept : 'application/vnd.github.v3.full+json' },
 		});
+		return normalizePullRequest(pr);
 	}
 
 	/** GitHub aggregate review state: APPROVED | CHANGES_REQUESTED | REVIEW_REQUIRED or null. */
@@ -520,14 +578,13 @@ class GitHubAPI {
 				this.clear();
 				throw apiError('Session expired. Please sign in again.', { status : 401 });
 			}
-			const msg = typeof body.message === 'string' ? body.message : `GitHub API error: ${response.status}`;
-			throw apiError(msg, { status : response.status });
+			throw apiError(formatGithubRestErrorMessage(response.status, body), { status : response.status });
 		}
 		return body;
 	}
 
-	/** PATCH pull request (title, draft, etc.). Returns updated PR JSON. */
-	async updatePullRequest(owner: string, repo: string, number: number, patch: { title?: string; draft?: boolean }): Promise<any> {
+	/** PATCH pull request (title, draft, state, etc.). Returns updated PR JSON. */
+	async updatePullRequest(owner: string, repo: string, number: number, patch: { title?: string; draft?: boolean; state?: 'open' | 'closed' }): Promise<any> {
 		const response = await fetch(`${this.apiBase}/repos/${owner}/${repo}/pulls/${number}`, {
 			method  : 'PATCH',
 			headers : {

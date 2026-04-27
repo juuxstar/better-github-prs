@@ -1,5 +1,5 @@
 <template>
-	<div class="pr-detail-page u-flex u-flex-col u-overflow-hidden">
+	<div class="pr-detail-page u-flex u-flex-col u-overflow-hidden u-h-screen u-p-0 u-m-auto">
 		<pr-detail-load-state v-if="loading || error" :loading="loading" :error="error" @retry="loadAll" />
 
 		<template v-else-if="pr">
@@ -10,10 +10,10 @@
 						<span
 							class="pr-detail-badge u-flex-shrink-0"
 							:class="{
-								'pr-detail-badge-draft' : pr.draft,
+								'pr-detail-badge-draft'  : pr.draft,
 								'pr-detail-badge-merged' : !pr.draft && pr.merged,
 								'pr-detail-badge-closed' : !pr.draft && !pr.merged && pr.state === 'closed',
-								'pr-detail-badge-open' : !pr.draft && !pr.merged && pr.state === 'open',
+								'pr-detail-badge-open'   : !pr.draft && !pr.merged && pr.state === 'open',
 							}"
 							>{{ prStatusBadgeText }}</span>
 						<div class="pr-detail-header-title-block u-flex u-items-center u-min-w-0 u-flex-grow-1 u-gap-2">
@@ -21,16 +21,16 @@
 								<h1 class="pr-detail-title u-min-w-0 u-flex-1 u-fs-15 u-fw-600 u-text-primary u-truncate u-m-0">
 									{{ pr.title }}
 								</h1>
-								<button type="button" class="pr-detail-header-icon-btn u-flex-shrink-0" title="Edit title" aria-label="Edit title" @click="openTitleEdit">
+								<button
+									type="button"
+									class="pr-detail-header-icon-btn u-inline-flex u-items-center u-justify-center u-flex-shrink-0 u-p-0 u-cursor-pointer"
+									title="Edit title"
+									aria-label="Edit title"
+									@click="openTitleEdit"
+								>
 									<span class="u-flex u-items-center u-justify-center" aria-hidden="true" v-html="$icon('pencil', 14)"></span>
 								</button>
 							</div>
-							<span v-if="canToggleDraft" class="pr-detail-control-wrap has-tooltip" :data-tooltip="draftToggleTooltip">
-								<button type="button" class="pr-detail-header-draft-btn" :disabled="togglingDraft" :title="pr.draft ? 'Mark ready for review' : 'Mark as draft'" @click="togglePrDraft">
-									<span v-if="togglingDraft" class="async-loader"></span>
-									<template v-else>{{ pr.draft ? "Ready for review" : "Mark draft" }}</template>
-								</button>
-							</span>
 						</div>
 					</div>
 					<div class="pr-detail-header-center u-flex u-items-center u-justify-center u-flex-1">
@@ -38,53 +38,58 @@
 						<button
 							v-if="showMarkWhitespaceViewedButton"
 							type="button"
-							class="pr-whitespace-viewed-btn has-tooltip"
+							class="pr-whitespace-viewed-btn has-tooltip u-inline-flex u-items-center u-gap-1 u-ml-2 u-cursor-pointer u-whitespace-nowrap u-relative"
 							:data-tooltip="whitespaceViewedBtnTooltip"
 							:disabled="markingWhitespaceViewed"
 							@click="openWhitespaceViewedConfirm"
 						>
 							Whitespace&rarr;viewed ({{ whitespaceOnlyUnviewedCount }})
 						</button>
-						<button
-							v-if="activeTab === 'overview' && showMergePrButton"
-							class="pr-merge-btn has-tooltip"
-							data-tooltip="Squash all commits into one and merge into the base branch (same as GitHub's squash merge)."
-							:disabled="mergingPr"
-							@click="openMergeConfirm"
-						>
-							<span v-if="mergingPr" class="async-loader"></span>
-							<template v-else>Merge PR</template>
-						</button>
-						<button v-if="showApproveInHeader" class="pr-approve-btn" :disabled="approvingPr" @click="approvePr">
-							<span v-if="approvingPr" class="async-loader"></span>
-							<template v-else>&#10003; Approve</template>
-						</button>
 					</div>
 					<div class="pr-detail-header-right u-flex u-items-center u-gap-3 u-flex-1 u-justify-end">
 						<template v-if="pendingComments.length">
-							<button class="pr-review-discard-btn" @click="discardAllPending" title="Discard all pending comments">&times;</button>
-							<button class="pr-review-submit-btn" :disabled="submittingReview" @click="submitReview">
+							<button
+								class="pr-review-discard-btn u-inline-flex u-items-center u-justify-center u-cursor-pointer"
+								@click="discardAllPending"
+								title="Discard all pending comments"
+							>
+								&times;
+							</button>
+							<button
+								class="pr-review-submit-btn u-inline-flex u-items-center u-gap-1-5 u-cursor-pointer u-whitespace-nowrap"
+								:disabled="submittingReview"
+								@click="submitReview"
+							>
 								<span v-if="submittingReview" class="async-loader"></span>
 								Submit Review ({{ pendingComments.length }})
 							</button>
 						</template>
-						<span class="pr-detail-control-wrap has-tooltip" data-tooltip="App colours: light, dark, or Auto (follow system).&#10;Saved in this browser.">
+						<span
+							class="pr-detail-control-wrap has-tooltip u-inline-flex u-items-center u-relative"
+							data-tooltip="App colours: light, dark, or Auto (follow system).&#10;Saved in this browser."
+						>
 							<appearance-select class="pr-detail-appearance" />
 						</span>
 						<span
-							class="pr-detail-control-wrap has-tooltip"
+							class="pr-detail-control-wrap has-tooltip u-inline-flex u-items-center u-relative"
 							data-tooltip="Syntax highlighting theme for code in the diff (matches current app mode).&#10;Your choice is saved per light and dark mode."
 						>
 							<select class="pr-detail-tab-size" :value="hljsTheme" @change="hljsTheme = ($event.target as HTMLSelectElement).value">
 								<option v-for="t in hljsThemesFiltered" :key="t.id" :value="t.id">{{ t.label }}</option>
 							</select>
 						</span>
-						<span class="pr-detail-control-wrap has-tooltip" data-tooltip="Font size for line numbers and code in the Files tab.&#10;Saved in this browser.">
+						<span
+							class="pr-detail-control-wrap has-tooltip u-inline-flex u-items-center u-relative"
+							data-tooltip="Font size for line numbers and code in the Files tab.&#10;Saved in this browser."
+						>
 							<select class="pr-detail-tab-size" :value="diffFontSize" @change="diffFontSize = +($event.target as HTMLSelectElement).value">
 								<option v-for="p in diffFontSizePresets" :key="p.value" :value="p.value">{{ p.label }}</option>
 							</select>
 						</span>
-						<span class="pr-detail-control-wrap has-tooltip" data-tooltip="How many spaces wide each tab character appears in diff code.&#10;Saved in this browser.">
+						<span
+							class="pr-detail-control-wrap has-tooltip u-inline-flex u-items-center u-relative"
+							data-tooltip="How many spaces wide each tab character appears in diff code.&#10;Saved in this browser."
+						>
 							<select class="pr-detail-tab-size" :value="tabSize" @change="tabSize = +($event.target as HTMLSelectElement).value">
 								<option :value="2">2 spaces</option>
 								<option :value="4">4 spaces</option>
@@ -105,9 +110,19 @@
 						:review-comments="reviewComments"
 						:issue-comments="issueComments"
 						:comments-loading="reviewCommentsLoading"
+						:review-decision="reviewDecision"
+						:show-merge-action="showMergePrButton || mergingPr"
+						:approving-pr="approvingPr"
+						:merging-pr="mergingPr"
+						:closing-pr="closingPr"
+						:toggling-draft="togglingDraft"
 						@add-label="addLabel"
 						@remove-label="removeLabel"
 						@comments-updated="onCommentsUpdated"
+						@approve-pr="approvePr"
+						@merge-pr="openMergeConfirm"
+						@close-pr="openCloseConfirm"
+						@toggle-draft="togglePrDraft"
 					/>
 					<pr-files-tab
 						v-else-if="activeTab === 'files'"
@@ -119,7 +134,7 @@
 						:head-ref="pr.head.sha"
 						:initial-file-index="initialFileIndex"
 						:pr-title="pr.title"
-						:pr-number="pr.number"
+						:pr-number="routeBackedPrNumber"
 						:pr-author-login="pr.user.login"
 						:tab-size="tabSize"
 						:diff-font-size="diffFontSize"
@@ -139,69 +154,71 @@
 			</div>
 
 			<Teleport to="body">
-				<div v-if="mergeConfirmOpen && pr" class="pr-merge-confirm-backdrop u-fixed u-inset-0 u-z-modal u-flex u-items-center u-justify-center u-p-6" @click.self="closeMergeConfirm">
-					<div class="pr-merge-confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="pr-merge-confirm-title">
-						<h2 id="pr-merge-confirm-title" class="pr-merge-confirm-title">Merge pull request?</h2>
-						<p class="pr-merge-confirm-body">
-							This will squash all commits into one and merge
-							<span class="pr-merge-confirm-repo">{{ owner }}/{{ repo }}</span>
-							<strong>#{{ pr.number }}</strong> into <strong>{{ pr.base.ref }}</strong>.
-						</p>
-						<p v-if="mergeConfirmError" class="pr-merge-confirm-error">{{ mergeConfirmError }}</p>
-						<div class="pr-merge-confirm-actions u-flex u-justify-end u-gap-2-5 u-flex-wrap">
-							<button type="button" class="btn btn-secondary" :disabled="mergingPr" @click="closeMergeConfirm">Cancel</button>
-							<button type="button" class="btn pr-merge-confirm-submit" :disabled="mergingPr" @click="confirmMergePr">
-								<span v-if="mergingPr" class="async-loader"></span>
-								<template v-else>Squash and merge</template>
-							</button>
-						</div>
-					</div>
-				</div>
-				<div
-					v-if="whitespaceViewedConfirmOpen && pr"
-					class="pr-merge-confirm-backdrop u-fixed u-inset-0 u-z-modal u-flex u-items-center u-justify-center u-p-6"
-					@click.self="closeWhitespaceViewedConfirm"
-				>
-					<div class="pr-merge-confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="pr-whitespace-viewed-confirm-title">
-						<h2 id="pr-whitespace-viewed-confirm-title" class="pr-merge-confirm-title">Mark whitespace-only files as viewed?</h2>
-						<p class="pr-merge-confirm-body">
-							This will mark <strong>{{ whitespaceOnlyUnviewedCount }}</strong> unviewed file(s) as viewed on GitHub.
-						</p>
-						<p class="pr-merge-confirm-body">
-							Only files with a patch where every removed/added line pair differs by whitespace are included (modified or renamed; no patch, binary, or uneven blocks are skipped).
-						</p>
-						<p v-if="whitespaceViewedConfirmError" class="pr-merge-confirm-error">{{ whitespaceViewedConfirmError }}</p>
-						<div class="pr-merge-confirm-actions u-flex u-justify-end u-gap-2-5 u-flex-wrap">
-							<button type="button" class="btn btn-secondary" :disabled="markingWhitespaceViewed" @click="closeWhitespaceViewedConfirm">Cancel</button>
-							<button type="button" class="btn pr-merge-confirm-submit" :disabled="markingWhitespaceViewed" @click="confirmMarkWhitespaceViewedFiles">
-								<span v-if="markingWhitespaceViewed" class="async-loader"></span>
-								<template v-else>Mark {{ whitespaceOnlyUnviewedCount }} as viewed</template>
-							</button>
-						</div>
-					</div>
-				</div>
-				<div v-if="titleEditOpen && pr" class="pr-merge-confirm-backdrop u-fixed u-inset-0 u-z-modal u-flex u-items-center u-justify-center u-p-6" @click.self="closeTitleEdit">
-					<div class="pr-merge-confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="pr-title-edit-title" @keydown.escape="closeTitleEdit">
-						<h2 id="pr-title-edit-title" class="pr-merge-confirm-title">Edit pull request title</h2>
-						<input ref="prTitleEditInput" v-model="titleEditValue" type="text" class="pr-title-edit-input" maxlength="500" autocomplete="off" @keydown.enter.prevent="saveTitleEdit" />
-						<p v-if="titleEditError" class="pr-merge-confirm-error">{{ titleEditError }}</p>
-						<div class="pr-merge-confirm-actions u-flex u-justify-end u-gap-2-5 u-flex-wrap">
-							<button type="button" class="btn btn-secondary" :disabled="updatingTitle" @click="closeTitleEdit">Cancel</button>
-							<button type="button" class="btn pr-merge-confirm-submit" :disabled="updatingTitle" @click="saveTitleEdit">
-								<span v-if="updatingTitle" class="async-loader"></span>
-								<template v-else>Save</template>
-							</button>
-						</div>
-					</div>
-				</div>
+				<pr-merge-confirm-modal
+					v-if="pr"
+					:open="mergeConfirmOpen"
+					:owner="owner"
+					:repo="repo"
+					:pr-number="routeBackedPrNumber"
+					:base-ref="pr.base.ref"
+					:unmet-requirements="mergeConfirmUnmetRequirements"
+					:merging="mergingPr"
+					@close="closeMergeConfirm"
+					@confirm="confirmMergePr"
+				/>
+				<pr-whitespace-viewed-modal
+					:open="whitespaceViewedConfirmOpen"
+					:count="whitespaceOnlyUnviewedCount"
+					:error="whitespaceViewedConfirmError"
+					:marking="markingWhitespaceViewed"
+					@close="closeWhitespaceViewedConfirm"
+					@confirm="confirmMarkWhitespaceViewedFiles"
+				/>
+				<pr-close-confirm-modal
+					:open="closeConfirmOpen"
+					:owner="owner"
+					:repo="repo"
+					:pr-number="routeBackedPrNumber"
+					:error="closeConfirmError"
+					:closing="closingPr"
+					@close="closeCloseConfirm"
+					@confirm="confirmClosePr"
+				/>
+				<pr-error-modal
+					:open="Boolean(approvePrError)"
+					title="Could not approve"
+					title-id="pr-approve-error-title"
+					:message="approvePrError"
+					@close="dismissApproveError"
+				/>
+				<pr-error-modal
+					:open="Boolean(mergePrError)"
+					title="Could not merge"
+					title-id="pr-merge-error-title"
+					:message="mergePrError"
+					@close="dismissMergeError"
+				/>
+				<pr-title-edit-modal
+					v-model="titleEditValue"
+					:open="titleEditOpen"
+					:error="titleEditError"
+					:updating="updatingTitle"
+					@close="closeTitleEdit"
+					@save="saveTitleEdit"
+				/>
 			</Teleport>
 		</template>
 	</div>
 </template>
 
 <script lang="ts">
+import PrCloseConfirmModal                      from '@/components/pr/PrCloseConfirmModal.vue';
 import PrDetailLoadState                        from '@/components/pr/PrDetailLoadState.vue';
 import PrDetailTabBar                           from '@/components/pr/PrDetailTabBar.vue';
+import PrErrorModal                             from '@/components/pr/PrErrorModal.vue';
+import PrMergeConfirmModal                      from '@/components/pr/PrMergeConfirmModal.vue';
+import PrTitleEditModal                         from '@/components/pr/PrTitleEditModal.vue';
+import PrWhitespaceViewedModal                  from '@/components/pr/PrWhitespaceViewedModal.vue';
 import { getStoredToken }                       from '@/lib/api/auth';
 import type { CheckRunDetail, IssueComment, PendingComment, PRFile, RepoLabel, ReviewComment }    from '@/lib/api/githubClient';
 import GitHubClient                             from '@/lib/api/githubClient';
@@ -215,8 +232,16 @@ import { timeAgo }                              from '@/lib/utils';
 import { Component, Prop, Vue, Watch } from 'vue-facing-decorator';
 
 @Component({
-	components : { PrDetailLoadState, PrDetailTabBar },
-	emits      : [ 'update:fileIndex' ],
+	components : {
+		PrCloseConfirmModal,
+		PrDetailLoadState,
+		PrDetailTabBar,
+		PrErrorModal,
+		PrMergeConfirmModal,
+		PrTitleEditModal,
+		PrWhitespaceViewedModal,
+	},
+	emits : [ 'update:fileIndex' ],
 })
 export default class PrDetailView extends Vue {
 
@@ -265,7 +290,7 @@ export default class PrDetailView extends Vue {
 	approvingPr = false;
 	mergingPr = false;
 	mergeConfirmOpen = false;
-	mergeConfirmError = '';
+	mergePrError = '';
 	titleEditOpen = false;
 	titleEditValue = '';
 	titleEditError = '';
@@ -275,6 +300,11 @@ export default class PrDetailView extends Vue {
 	whitespaceViewedConfirmError = '';
 	markingWhitespaceViewed = false;
 	reviewDecision: 'APPROVED' | 'CHANGES_REQUESTED' | 'REVIEW_REQUIRED' | null = null;
+	mergeConfirmUnmetRequirements = false;
+	closeConfirmOpen = false;
+	closeConfirmError = '';
+	closingPr = false;
+	approvePrError = '';
 
 	@Watch('tabSize')
 	onTabSizeChanged(val: number) {
@@ -302,7 +332,11 @@ export default class PrDetailView extends Vue {
 		if (oldKey === undefined) {
 			return;
 		}
-		const parts = oldKey.split('/');
+		this.mergePollCancelled = true;
+		this.mergingPr          = false;
+		this.approvePrError     = '';
+		this.mergePrError       = '';
+		const parts             = oldKey.split('/');
 		if (parts.length !== 3) {
 			return;
 		}
@@ -327,10 +361,29 @@ export default class PrDetailView extends Vue {
 
 	private _checksTimer: ReturnType<typeof setInterval> | null = null;
 	private _unsubColorScheme: (() => void) | null = null;
+	private _onDocumentVisibility: (() => void) | null = null;
 	private _originalTitle = '';
+	private mergePollCancelled = false;
 
 	get prNumber(): number {
 		return parseInt(this.number, 10);
+	}
+
+	/**
+	 * PR # shown in the header badge, dialogs, tab title, and children: prefer the route param so it always
+	 * matches `/pull-request/:owner/:repo/:number`, since `pr.number` from payloads can occasionally disagree.
+	 */
+	get routeBackedPrNumber(): number {
+		const fromRoute = this.prNumber;
+		if (Number.isInteger(fromRoute) && fromRoute > 0) {
+			return fromRoute;
+		}
+		const fromApi = this.pr?.number;
+		if (typeof fromApi === 'number' && Number.isFinite(fromApi)) {
+			return fromApi;
+		}
+		const parsed = parseInt(String(fromApi ?? ''), 10);
+		return Number.isFinite(parsed) ? parsed : 0;
 	}
 
 	/** Header badge: open PRs show # only; draft / merged / closed add an explicit status. */
@@ -338,7 +391,7 @@ export default class PrDetailView extends Vue {
 		if (!this.pr) {
 			return '';
 		}
-		const n = this.pr.number;
+		const n = this.routeBackedPrNumber;
 		if (this.pr.draft) {
 			return `#${n} · Draft`;
 		}
@@ -394,36 +447,39 @@ export default class PrDetailView extends Vue {
 		return Boolean(this.files.length && this.prNodeId && this.whitespaceOnlyUnviewedCount > 0);
 	}
 
+	/** Show merge for any non-draft PR that is not already merged (GitHub returns an error if merge is not allowed). */
 	get showMergePrButton(): boolean {
-		if (!this.pr) {
-			return false;
-		}
-		if (this.pr.draft || this.pr.state !== 'open' || this.pr.merged) {
-			return false;
-		}
-		return this.reviewDecision === 'APPROVED';
-	}
-
-	/** Approve in header only on Files tab, same slot as Merge PR on Overview. */
-	get showApproveInHeader(): boolean {
-		if (this.activeTab !== 'files') {
-			return false;
-		}
-		if (!this.files.length) {
-			return false;
-		}
-		return this.reviewPct >= 100 && this.reviewDecision !== 'APPROVED';
+		return Boolean(this.pr && !this.pr.draft && !this.pr.merged);
 	}
 
 	get canToggleDraft(): boolean {
 		return Boolean(this.pr && this.pr.state === 'open' && !this.pr.merged);
 	}
 
-	get draftToggleTooltip(): string {
-		if (!this.pr) {
-			return '';
+	/** True when GitHub merge state, review, and checks look ready to merge without warnings. */
+	get mergeRequirementsMet(): boolean {
+		if (!this.pr || this.pr.draft || this.pr.state !== 'open' || this.pr.merged) {
+			return false;
 		}
-		return this.pr.draft ? 'Publish this pull request (remove draft), same as on GitHub.' : 'Convert to draft: stays open but is not ready for review until you publish.';
+		if (this.reviewDecision !== 'APPROVED') {
+			return false;
+		}
+		if (this.pr.mergeable === false || this.pr.mergeable === null) {
+			return false;
+		}
+		const ms = this.pr.mergeable_state as string | undefined;
+		if (ms && ms !== 'clean') {
+			return false;
+		}
+		for (const check of this.checks) {
+			const c      = check.conclusion;
+			const passed = c === 'success' || c === 'neutral' || c === 'skipped';
+			const failed = c === 'failure' || c === 'timed_out' || c === 'cancelled' || c === 'error';
+			if (failed || !passed) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	mounted() {
@@ -444,15 +500,103 @@ export default class PrDetailView extends Vue {
 			this.hljsTheme      = getStoredHljsThemeId(next);
 			loadHljsTheme(this.hljsTheme);
 		});
+		this._onDocumentVisibility = () => {
+			if (document.visibilityState !== 'visible' || this.loading || this.error || !this.pr || this.mergingPr) {
+				return;
+			}
+			void this.refreshPrWhenTabVisible();
+		};
+		document.addEventListener('visibilitychange', this._onDocumentVisibility);
 		this.loadAll();
 	}
 
 	beforeUnmount() {
+		this.mergePollCancelled = true;
+		if (this._onDocumentVisibility) {
+			document.removeEventListener('visibilitychange', this._onDocumentVisibility);
+			this._onDocumentVisibility = null;
+		}
 		this.persistPendingToStorage();
 		this.stopChecksPolling();
 		this._unsubColorScheme?.();
 		this._unsubColorScheme = null;
 		document.title         = this._originalTitle;
+	}
+
+	/** Pick up merges or other GitHub-side updates when returning to this tab. */
+	private async refreshPrWhenTabVisible(): Promise<void> {
+		try {
+			const [ pr, decision ] = await Promise.all([
+				GitHubClient.fetchPRDetail(this.owner, this.repo, this.prNumber),
+				GitHubClient.fetchPullRequestReviewDecision(this.owner, this.repo, this.prNumber),
+			]);
+			this.pr             = pr;
+			this.reviewDecision = decision;
+			document.title      = `#${this.routeBackedPrNumber} ${this.pr.title}`;
+		}
+		catch (e: any) {
+			console.error('Failed to refresh PR when tab became visible:', e);
+		}
+	}
+
+	private delay(ms: number): Promise<void> {
+		return new Promise(resolve => setTimeout(resolve, ms));
+	}
+
+	/** Reload PR + related data without the full-page loading overlay (e.g. after merge completes). */
+	private async refreshMergedPullRequest(): Promise<void> {
+		try {
+			const [ pr, decision ] = await Promise.all([
+				GitHubClient.fetchPRDetail(this.owner, this.repo, this.prNumber),
+				GitHubClient.fetchPullRequestReviewDecision(this.owner, this.repo, this.prNumber),
+			]);
+			this.pr             = pr;
+			this.reviewDecision = decision;
+			document.title      = `#${this.routeBackedPrNumber} ${this.pr.title}`;
+			const headSha       = pr.head?.sha;
+			if (headSha) {
+				const restored       = loadPendingReview(this.owner, this.repo, this.prNumber, headSha);
+				this.pendingComments = restored ?? [];
+			}
+			else {
+				this.pendingComments = [];
+			}
+			if (pr.user?.login) {
+				await GitHubClient.fetchUserFirstNames([ pr.user.login ]);
+			}
+			this.loadChecks();
+			this.loadRepoLabels();
+			this.loadReviewComments();
+			if (this.activeTab === 'files') {
+				this.loadFiles();
+			}
+		}
+		catch (e: any) {
+			console.error('Failed to refresh PR after merge:', e);
+		}
+	}
+
+	private async pollUntilMerged(): Promise<void> {
+		const deadline = Date.now() + 120_000;
+		while (Date.now() < deadline && !this.mergePollCancelled) {
+			try {
+				const detail = await GitHubClient.fetchPRDetail(this.owner, this.repo, this.prNumber);
+				if (this.mergePollCancelled) {
+					return;
+				}
+				if (detail.merged) {
+					await this.refreshMergedPullRequest();
+					return;
+				}
+			}
+			catch {
+				/* Keep polling until deadline */
+			}
+			await this.delay(2000);
+		}
+		if (!this.mergePollCancelled) {
+			await this.refreshMergedPullRequest();
+		}
 	}
 
 	async loadAll() {
@@ -465,7 +609,7 @@ export default class PrDetailView extends Vue {
 			]);
 			this.pr             = pr;
 			this.reviewDecision = decision;
-			document.title      = `#${this.pr.number} ${this.pr.title}`;
+			document.title      = `#${this.routeBackedPrNumber} ${this.pr.title}`;
 			const headSha       = pr.head?.sha;
 			if (headSha) {
 				const restored       = loadPendingReview(this.owner, this.repo, this.prNumber, headSha);
@@ -558,7 +702,7 @@ export default class PrDetailView extends Vue {
 	/** Apply GitHub viewed-file state for `fileList` so `files` and `viewedFiles` stay in sync for the child Files tab. */
 	private applyViewedStateFromApi(fileList: PRFile[], result: { prNodeId: string; viewedFiles: Record<string, string> }) {
 		this.prNodeId = result.prNodeId;
-		const byPath   = result.viewedFiles;
+		const byPath  = result.viewedFiles;
 		if (fileList.length) {
 			const merged: Record<string, string> = {};
 			for (const f of fileList) {
@@ -711,36 +855,116 @@ export default class PrDetailView extends Vue {
 	}
 
 	async approvePr() {
-		if (this.approvingPr) {
+		if (this.approvingPr || !this.pr?.head?.sha) {
 			return;
 		}
-		this.approvingPr = true;
+		this.approvingPr    = true;
+		this.approvePrError = '';
+		const fullRepo      = `${this.owner}/${this.repo}`;
 		try {
 			await GitHubClient.submitReview(this.owner, this.repo, this.prNumber, this.pr.head.sha, [], 'APPROVE');
+			const labelsOnPr = [ ...(this.pr.labels || []) ] as { name: string }[];
+			for (const l of labelsOnPr) {
+				if (typeof l.name === 'string' && /changes-requested/i.test(l.name)) {
+					try {
+						await GitHubClient.removeLabel(fullRepo, this.prNumber, l.name);
+						this.pr.labels = (this.pr.labels || []).filter((x: any) => x.name !== l.name);
+					}
+					catch (e: any) {
+						console.error('Failed to remove label after approve:', e);
+					}
+				}
+			}
+			const hasReadyToMergeLabel = (this.pr.labels || []).some(
+				(x: any) => typeof x.name === 'string' && x.name.toLowerCase() === 'ready to merge'
+			);
+			if (!hasReadyToMergeLabel) {
+				try {
+					const readyName
+						= this.repoLabels.find(lab => lab.name.toLowerCase() === 'ready to merge')?.name ?? 'ready to merge';
+					await GitHubClient.addLabel(fullRepo, this.prNumber, readyName);
+				}
+				catch (e: any) {
+					console.error('Failed to add ready to merge label:', e);
+				}
+			}
+			try {
+				const refreshed = await GitHubClient.fetchPRDetail(this.owner, this.repo, this.prNumber);
+				this.pr.labels  = refreshed.labels ?? this.pr.labels;
+			}
+			catch (e: any) {
+				console.error('Failed to refresh PR labels after approve:', e);
+			}
 			this.reviewDecision = await GitHubClient.fetchPullRequestReviewDecision(this.owner, this.repo, this.prNumber);
 		}
 		catch (e: any) {
 			console.error('Failed to approve PR:', e);
+			this.approvePrError = typeof e?.message === 'string' && e.message.trim() ? e.message.trim() : 'Failed to approve pull request';
 		}
 		finally {
 			this.approvingPr = false;
 		}
 	}
 
+	dismissApproveError() {
+		this.approvePrError = '';
+	}
+
+	dismissMergeError() {
+		this.mergePrError = '';
+	}
+
 	openMergeConfirm() {
 		if (this.mergingPr || !this.pr) {
 			return;
 		}
-		this.mergeConfirmError = '';
-		this.mergeConfirmOpen  = true;
+		this.mergePrError                  = '';
+		this.mergeConfirmUnmetRequirements = !this.mergeRequirementsMet;
+		this.mergeConfirmOpen              = true;
 	}
 
 	closeMergeConfirm() {
 		if (this.mergingPr) {
 			return;
 		}
-		this.mergeConfirmOpen  = false;
-		this.mergeConfirmError = '';
+		this.mergeConfirmOpen              = false;
+		this.mergeConfirmUnmetRequirements = false;
+	}
+
+	openCloseConfirm() {
+		if (this.closingPr || !this.pr || this.pr.merged || this.pr.state !== 'open') {
+			return;
+		}
+		this.closeConfirmError = '';
+		this.closeConfirmOpen  = true;
+	}
+
+	closeCloseConfirm() {
+		if (this.closingPr) {
+			return;
+		}
+		this.closeConfirmOpen  = false;
+		this.closeConfirmError = '';
+	}
+
+	async confirmClosePr() {
+		if (this.closingPr || !this.pr) {
+			return;
+		}
+		this.closeConfirmError = '';
+		this.closingPr         = true;
+		try {
+			await GitHubClient.updatePullRequest(this.owner, this.repo, this.prNumber, { state : 'closed' });
+			this.closeConfirmOpen = false;
+			await this.loadAll();
+		}
+		catch (e: any) {
+			console.error('Failed to close PR:', e);
+			this.closeConfirmError = e.message || 'Failed to close pull request';
+		}
+		finally {
+			this.closingPr = false;
+		}
 	}
 
 	openWhitespaceViewedConfirm() {
@@ -766,11 +990,6 @@ export default class PrDetailView extends Vue {
 		this.titleEditValue = this.pr.title || '';
 		this.titleEditError = '';
 		this.titleEditOpen  = true;
-		this.$nextTick(() => {
-			const el = this.$refs.prTitleEditInput as HTMLInputElement | undefined;
-			el?.focus();
-			el?.select();
-		});
 	}
 
 	closeTitleEdit() {
@@ -799,7 +1018,7 @@ export default class PrDetailView extends Vue {
 		try {
 			const updated      = await GitHubClient.updatePullRequest(this.owner, this.repo, this.prNumber, { title : next });
 			this.pr.title      = updated.title ?? next;
-			document.title     = `#${this.pr.number} ${this.pr.title}`;
+			document.title     = `#${this.routeBackedPrNumber} ${this.pr.title}`;
 			this.titleEditOpen = false;
 		}
 		catch (e: any) {
@@ -861,16 +1080,22 @@ export default class PrDetailView extends Vue {
 		if (this.mergingPr || !this.pr) {
 			return;
 		}
-		this.mergeConfirmError = '';
-		this.mergingPr         = true;
+		this.mergePrError = '';
+		this.mergingPr    = true;
 		try {
 			await GitHubClient.mergePullRequestSquash(this.owner, this.repo, this.prNumber);
-			this.mergeConfirmOpen = false;
-			await this.loadAll();
 		}
 		catch (e: any) {
 			console.error('Failed to merge PR:', e);
-			this.mergeConfirmError = e.message || 'Merge failed';
+			this.mergePrError     = typeof e?.message === 'string' && e.message.trim() ? e.message.trim() : 'Merge failed';
+			this.mergeConfirmOpen = false;
+			this.mergingPr        = false;
+			return;
+		}
+		this.mergeConfirmOpen   = false;
+		this.mergePollCancelled = false;
+		try {
+			await this.pollUntilMerged();
 		}
 		finally {
 			this.mergingPr = false;
@@ -883,9 +1108,6 @@ export default class PrDetailView extends Vue {
 <style>
 .pr-detail-page {
 	max-width: 100%;
-	margin: 0 auto;
-	padding: 0;
-	height: 100vh;
 }
 
 .pr-detail-tab-shell > * {
@@ -921,18 +1143,12 @@ html[data-color-scheme="light"] .pr-detail-header {
 }
 
 .pr-detail-header-icon-btn {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	flex-shrink: 0;
 	width: 28px;
 	height: 28px;
-	padding: 0;
 	border: 1px solid var(--border);
 	border-radius: var(--radius-sm);
 	background: var(--bg-primary);
 	color: var(--text-secondary);
-	cursor: pointer;
 	transition:
 		color var(--transition),
 		border-color var(--transition),
@@ -942,52 +1158,6 @@ html[data-color-scheme="light"] .pr-detail-header {
 .pr-detail-header-icon-btn:hover {
 	color: var(--text-primary);
 	border-color: var(--text-tertiary);
-}
-
-.pr-detail-header-draft-btn {
-	display: inline-flex;
-	align-items: center;
-	gap: 4px;
-	padding: 3px 10px;
-	border: 1px solid var(--border);
-	border-radius: var(--radius-sm);
-	background: var(--bg-primary);
-	color: var(--text-secondary);
-	font-size: 12px;
-	font-weight: 600;
-	font-family: inherit;
-	cursor: pointer;
-	white-space: nowrap;
-	transition: all var(--transition);
-}
-
-.pr-detail-header-draft-btn:hover:not(:disabled) {
-	color: var(--text-primary);
-	border-color: var(--text-tertiary);
-}
-
-.pr-detail-header-draft-btn:disabled {
-	opacity: 0.6;
-	cursor: default;
-}
-
-.pr-title-edit-input {
-	box-sizing: border-box;
-	width: 100%;
-	margin: 0 0 16px;
-	padding: 8px 10px;
-	font-size: 14px;
-	font-family: inherit;
-	color: var(--text-primary);
-	background: var(--bg-primary);
-	border: 1px solid var(--border);
-	border-radius: var(--radius-sm);
-}
-
-.pr-title-edit-input:focus {
-	outline: none;
-	border-color: var(--accent-blue);
-	box-shadow: 0 0 0 2px var(--accent-blue-bg, rgba(88, 166, 255, 0.2));
 }
 
 .pr-detail-badge {
@@ -1116,11 +1286,7 @@ html[data-color-scheme="light"] .pr-detail-header {
 }
 
 .pr-whitespace-viewed-btn {
-	display: inline-flex;
-	align-items: center;
-	gap: 4px;
 	padding: 3px 10px;
-	margin-left: 8px;
 	border: 1px solid var(--border);
 	border-radius: var(--radius-sm);
 	background: var(--bg-primary);
@@ -1128,8 +1294,6 @@ html[data-color-scheme="light"] .pr-detail-header {
 	font-size: 12px;
 	font-weight: 600;
 	font-family: inherit;
-	cursor: pointer;
-	white-space: nowrap;
 	transition: all var(--transition);
 }
 
@@ -1143,132 +1307,8 @@ html[data-color-scheme="light"] .pr-detail-header {
 	cursor: default;
 }
 
-.pr-detail-header-center .pr-whitespace-viewed-btn.has-tooltip {
-	position: relative;
-}
-
-.pr-approve-btn {
-	display: inline-flex;
-	align-items: center;
-	gap: 4px;
-	padding: 3px 10px;
-	border: none;
-	border-radius: var(--radius-sm);
-	background: var(--accent-green);
-	color: var(--btn-primary-fg);
-	font-size: 12px;
-	font-weight: 600;
-	font-family: inherit;
-	cursor: pointer;
-	white-space: nowrap;
-	transition: all var(--transition);
-	margin-left: 4px;
-}
-
-.pr-approve-btn:hover:not(:disabled) {
-	filter: brightness(1.15);
-}
-
-.pr-approve-btn:disabled {
-	opacity: 0.6;
-	cursor: default;
-}
-
-.pr-merge-btn {
-	display: inline-flex;
-	align-items: center;
-	gap: 4px;
-	padding: 3px 10px;
-	border: none;
-	border-radius: var(--radius-sm);
-	background: var(--accent-purple);
-	color: var(--btn-primary-fg);
-	font-size: 12px;
-	font-weight: 600;
-	font-family: inherit;
-	cursor: pointer;
-	white-space: nowrap;
-	transition: all var(--transition);
-	margin-left: 4px;
-}
-
-.pr-merge-btn:hover:not(:disabled) {
-	filter: brightness(1.12);
-}
-
-.pr-merge-btn:disabled {
-	opacity: 0.6;
-	cursor: default;
-}
-
-.pr-merge-confirm-backdrop {
-	background: var(--overlay-backdrop);
-	backdrop-filter: blur(2px);
-}
-
-.pr-merge-confirm-dialog {
-	width: 100%;
-	max-width: 420px;
-	padding: 22px 24px;
-	background: var(--bg-secondary);
-	border: 1px solid var(--border);
-	border-radius: var(--radius-md);
-	box-shadow: var(--shadow-lg);
-}
-
-.pr-merge-confirm-title {
-	font-size: 18px;
-	font-weight: 600;
-	margin: 0 0 12px;
-	color: var(--text-primary);
-}
-
-.pr-merge-confirm-body {
-	margin: 0 0 16px;
-	font-size: 14px;
-	line-height: 1.5;
-	color: var(--text-secondary);
-}
-
-.pr-merge-confirm-repo {
-	color: var(--text-tertiary);
-	font-size: 13px;
-}
-
-.pr-merge-confirm-error {
-	margin: 0 0 16px;
-	padding: 10px 12px;
-	font-size: 13px;
-	line-height: 1.4;
-	color: var(--accent-red);
-	background: var(--danger-bg-subtle);
-	border: 1px solid var(--danger-border);
-	border-radius: var(--radius-sm);
-}
-
-.pr-merge-confirm-submit {
-	background: var(--accent-purple);
-	color: var(--btn-primary-fg);
-	border-color: transparent;
-}
-
-.pr-merge-confirm-submit:hover:not(:disabled) {
-	filter: brightness(1.08);
-}
-
-.pr-merge-confirm-submit:disabled {
-	opacity: 0.65;
-	cursor: default;
-}
-
 .pr-detail-control-wrap {
-	display: inline-flex;
-	align-items: center;
 	vertical-align: middle;
-}
-
-.pr-detail-control-wrap.has-tooltip {
-	position: relative;
 }
 
 .pr-detail-control-wrap.has-tooltip::after {
@@ -1329,9 +1369,6 @@ html[data-color-scheme="light"] .pr-detail-header {
 }
 
 .pr-review-submit-btn {
-	display: inline-flex;
-	align-items: center;
-	gap: 6px;
 	padding: 5px 14px;
 	border: none;
 	border-radius: var(--radius-sm);
@@ -1340,8 +1377,6 @@ html[data-color-scheme="light"] .pr-detail-header {
 	font-size: 12px;
 	font-weight: 600;
 	font-family: inherit;
-	cursor: pointer;
-	white-space: nowrap;
 	transition: all var(--transition);
 
 	&:hover:not(:disabled) {
@@ -1354,9 +1389,6 @@ html[data-color-scheme="light"] .pr-detail-header {
 }
 
 .pr-review-discard-btn {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
 	width: 26px;
 	height: 26px;
 	border: 1px solid var(--border);
@@ -1364,7 +1396,6 @@ html[data-color-scheme="light"] .pr-detail-header {
 	background: transparent;
 	color: var(--text-tertiary);
 	font-size: 16px;
-	cursor: pointer;
 	transition: all var(--transition);
 
 	&:hover {

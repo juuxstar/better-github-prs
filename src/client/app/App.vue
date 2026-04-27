@@ -12,6 +12,13 @@
 		@refresh="handleRefresh"
 		@logout="handleLogout"
 	/>
+	<github-status-banner
+		v-if="currentScreen === 'pr'"
+		:visible="githubStatusVisible"
+		:message="githubStatusMessage"
+		:level="githubStatusLevel"
+		@dismiss="dismissGithubStatus"
+	/>
 	<rate-limit-banner :visible="rateLimitVisible" :message="rateLimitMessage" @dismiss="dismissRateLimit" />
 	<auth-screen v-if="currentScreen === 'auth'" :disabled="loginDisabled" @login="handleLogin" />
 	<device-screen v-if="currentScreen === 'device'" :code="deviceCode" :url="deviceUrl" @cancel="handleCancelAuth" />
@@ -37,6 +44,7 @@
 import { cancelPolling, clearToken, getStoredToken, pollForToken, startDeviceFlow, storeToken } from '@/lib/api/auth';
 import type { ApiError } from '@/lib/api/githubClient';
 import GitHubClient      from '@/lib/api/githubClient';
+import { fetchGithubDashboardStatus, type GithubStatusBannerLevel }                             from '@/lib/githubStatus';
 
 import { Component, Vue, Watch } from 'vue-facing-decorator';
 
@@ -55,6 +63,9 @@ export default class App extends Vue {
 	deviceUrl = '';
 	rateLimitVisible = false;
 	rateLimitMessage = '';
+	githubStatusVisible     = false;
+	githubStatusMessage     = '';
+	githubStatusLevel: GithubStatusBannerLevel = 'warning';
 	branches: any[] = [];
 	refreshing = false;
 	loginDisabled = false;
@@ -62,6 +73,9 @@ export default class App extends Vue {
 
 	private _rateLimitTimer: ReturnType<typeof setTimeout> | null = null;
 	private _checksTimer: ReturnType<typeof setInterval> | null = null;
+	private _githubStatusTimer: ReturnType<typeof setInterval> | null = null;
+	private _githubStatusDismissedFingerprint: string | null   = null;
+	private _lastGithubStatusFingerprint: string              = '';
 
 	get repos(): string[] {
 		const set = new Set<string>();
@@ -86,6 +100,10 @@ export default class App extends Vue {
 		this.init();
 	}
 
+	beforeUnmount() {
+		this.stopGithubStatusPolling();
+	}
+
 	// ── Screen management ──────────────────────────────────
 
 	showScreen(name: string) {
@@ -94,6 +112,7 @@ export default class App extends Vue {
 
 	showError(msg: string | Error | any) {
 		this.errorMessage = typeof msg === 'string' ? msg : msg.message || 'Something went wrong';
+		this.stopGithubStatusPolling();
 		this.showScreen('error');
 	}
 
@@ -122,6 +141,51 @@ export default class App extends Vue {
 		this.rateLimitVisible = false;
 		if (this._rateLimitTimer) {
 			clearTimeout(this._rateLimitTimer);
+		}
+	}
+
+	// ── GitHub.com status (githubstatus.com) ─────────────
+
+	dismissGithubStatus() {
+		this.githubStatusVisible               = false;
+		this._githubStatusDismissedFingerprint = this._lastGithubStatusFingerprint;
+	}
+
+	private async refreshGithubStatus() {
+		if (this.currentScreen !== 'pr') {
+			return;
+		}
+		try {
+			const result = await fetchGithubDashboardStatus();
+			if (!result.showBanner) {
+				this.githubStatusVisible = false;
+				return;
+			}
+			if (result.fingerprint === this._githubStatusDismissedFingerprint) {
+				this.githubStatusVisible = false;
+				return;
+			}
+			this._lastGithubStatusFingerprint = result.fingerprint;
+			this.githubStatusMessage          = result.message;
+			this.githubStatusLevel            = result.level;
+			this.githubStatusVisible          = true;
+		}
+		catch {
+			// Public status request failed — omit banner; dashboard still works.
+		}
+	}
+
+	private startGithubStatusPolling() {
+		this.stopGithubStatusPolling();
+		this._githubStatusTimer = setInterval(() => {
+			this.refreshGithubStatus();
+		}, 5 * 60 * 1000);
+	}
+
+	private stopGithubStatusPolling() {
+		if (this._githubStatusTimer) {
+			clearInterval(this._githubStatusTimer);
+			this._githubStatusTimer = null;
 		}
 	}
 
@@ -209,6 +273,10 @@ export default class App extends Vue {
 
 	handleLogout() {
 		this.stopChecksPolling();
+		this.stopGithubStatusPolling();
+		this._githubStatusDismissedFingerprint = null;
+		this._lastGithubStatusFingerprint      = '';
+		this.githubStatusVisible               = false;
 		clearToken();
 		GitHubClient.clear();
 		this.allPRs   = [];
@@ -228,6 +296,7 @@ export default class App extends Vue {
 			this.dataVersion++;
 			await this.fetchAndRenderBranches();
 			this.fetchAsyncData();
+			this.refreshGithubStatus();
 		}
 		catch (error: any) {
 			const handled = await this.handleApiError(error);
@@ -297,7 +366,7 @@ export default class App extends Vue {
 
 	isMergeLabeled(pr: any): boolean {
 		const hasL = (name: string) => pr.labels?.some((l: any) => l.name.toLowerCase() === name.toLowerCase());
-		return hasL('ready to merge') || hasL('δ: ready to merge');
+		return hasL('ready to merge');
 	}
 
 	getPRsNeedingCheckRefresh(): any[] {
@@ -418,6 +487,8 @@ export default class App extends Vue {
 			this.showScreen('pr');
 			this.fetchAsyncData();
 			this.fetchAndRenderBranches();
+			this.refreshGithubStatus();
+			this.startGithubStatusPolling();
 		}
 		catch (error: any) {
 			const handled = await this.handleApiError(error);

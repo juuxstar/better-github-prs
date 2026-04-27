@@ -44,15 +44,15 @@ import { Component, Prop, Vue } from 'vue-facing-decorator';
 
 const ALPHA_HIDDEN_LABELS = new Set([ 'α: review requested' ]);
 const BETA_HIDDEN_LABELS  = new Set([ 'β: review requested' ]);
-const MERGE_HIDDEN_LABELS = new Set([ 'δ: ready to merge', 'ready to merge' ]);
+const MERGE_HIDDEN_LABELS = new Set([ 'ready to merge' ]);
 
 const TEAM_GREEK: Record<string, string> = { alpha : 'α', beta : 'β', gamma : 'γ' };
 
 const SECTION_LABELS: Record<string, { add: string; remove: string[] }> = {
-	alpha : { add : 'α: review requested', remove : [ 'β: review requested', 'γ: review requested', 'γ: changes requested', 'ready to merge', 'δ: ready to merge' ] },
-	beta  : { add : 'β: review requested', remove : [ 'α: review requested', 'γ: review requested', 'γ: changes requested', 'ready to merge', 'δ: ready to merge' ] },
-	gamma : { add : 'γ: review requested', remove : [ 'α: review requested', 'β: review requested', 'γ: changes requested', 'ready to merge', 'δ: ready to merge' ] },
-	merge : { add : 'δ: ready to merge', remove : [ 'α: review requested', 'β: review requested', 'γ: review requested', 'γ: changes requested' ] },
+	alpha : { add : 'α: review requested', remove : [ 'β: review requested', 'γ: review requested', 'γ: changes requested', 'ready to merge' ] },
+	beta  : { add : 'β: review requested', remove : [ 'α: review requested', 'γ: review requested', 'γ: changes requested', 'ready to merge' ] },
+	gamma : { add : 'γ: review requested', remove : [ 'α: review requested', 'β: review requested', 'γ: changes requested', 'ready to merge' ] },
+	merge : { add : 'ready to merge', remove : [ 'α: review requested', 'β: review requested', 'γ: review requested', 'γ: changes requested' ] },
 };
 
 /** Main board layout that categorizes PRs into columns and handles drag-and-drop reordering. */
@@ -120,7 +120,7 @@ export default class PrBoard extends Vue {
 			else if (this.hasLabelStartingWith(pr, 'β:')) {
 				beta.push(pr);
 			}
-			else if (this.hasLabel(pr, 'ready to merge') || this.hasLabel(pr, 'δ: ready to merge')) {
+			else if (this.hasLabel(pr, 'ready to merge')) {
 				readyToMerge.push(pr);
 			}
 			else {
@@ -128,7 +128,7 @@ export default class PrBoard extends Vue {
 				if (hasTeamReview) {
 					gamma.push(pr);
 				}
-				else {
+				else if (pr.state === 'open') {
 					other.push(pr);
 				}
 			}

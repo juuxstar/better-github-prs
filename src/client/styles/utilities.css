@@ -140,6 +140,14 @@
 	gap: var(--u-0-5);
 }
 
+.u-gap-0 {
+	gap: 0;
+}
+
+.u-gap-1 {
+	gap: var(--u-1);
+}
+
 .u-gap-1-5 {
 	gap: var(--u-1-5);
 }
@@ -170,6 +178,21 @@
 	padding-right: var(--u-3);
 }
 
+.u-px-1 {
+	padding-left: var(--u-1);
+	padding-right: var(--u-1);
+}
+
+.u-px-2 {
+	padding-left: var(--u-2);
+	padding-right: var(--u-2);
+}
+
+.u-px-2-5 {
+	padding-left: var(--u-2-5);
+	padding-right: var(--u-2-5);
+}
+
 .u-px-4 {
 	padding-left: var(--u-4);
 	padding-right: var(--u-4);
@@ -183,6 +206,11 @@
 .u-py-1 {
 	padding-top: var(--u-1);
 	padding-bottom: var(--u-1);
+}
+
+.u-py-0-5 {
+	padding-top: var(--u-0-5);
+	padding-bottom: var(--u-0-5);
 }
 
 .u-py-2 {
@@ -210,6 +238,11 @@
 	padding-bottom: var(--u-4);
 }
 
+.u-py-20 {
+	padding-top: var(--u-20);
+	padding-bottom: var(--u-20);
+}
+
 .u-py-25 {
 	padding-top: var(--u-25);
 	padding-bottom: var(--u-25);
@@ -228,6 +261,14 @@
 	margin-top: var(--u-1);
 }
 
+.u-mt-1-5 {
+	margin-top: var(--u-1-5);
+}
+
+.u-mt-0-5 {
+	margin-top: var(--u-0-5);
+}
+
 .u-pt-0-5 {
 	padding-top: var(--u-0-5);
 }
@@ -242,12 +283,25 @@
 	margin-bottom: var(--u-1-5);
 }
 
+.u-my-1 {
+	margin-top: var(--u-1);
+	margin-bottom: var(--u-1);
+}
+
 .u-ml-auto {
 	margin-left: auto;
 }
 
 .u-ml-4 {
 	margin-left: var(--u-4);
+}
+
+.u-ml-2 {
+	margin-left: var(--u-2);
+}
+
+.u-ml-3 {
+	margin-left: var(--u-3);
 }
 
 .u-m-auto {
@@ -259,9 +313,21 @@
 	margin: 0;
 }
 
+.u-box-border {
+	box-sizing: border-box;
+}
+
 /* —— Margin —— */
 .u-mb-2-5 {
 	margin-bottom: var(--u-2-5);
+}
+
+.u-mb-2 {
+	margin-bottom: var(--u-2);
+}
+
+.u-mb-1 {
+	margin-bottom: var(--u-1);
 }
 
 .u-mb-3 {
@@ -353,6 +419,10 @@
 	font-size: 18px;
 }
 
+.u-fs-20 {
+	font-size: 20px;
+}
+
 .u-fs-24 {
 	font-size: 24px;
 }
@@ -367,6 +437,10 @@
 
 .u-leading-1-4 {
 	line-height: 1.4;
+}
+
+.u-leading-1 {
+	line-height: 1;
 }
 
 .u-uppercase {
@@ -400,6 +474,10 @@
 
 .u-h-full {
 	height: 100%;
+}
+
+.u-h-screen {
+	height: 100vh;
 }
 
 .u-min-w-0 {
@@ -442,6 +520,10 @@
 
 .u-right-0 {
 	right: 0;
+}
+
+.u-top-full {
+	top: 100%;
 }
 
 .u-z-1 {
@@ -503,4 +585,8 @@
 
 .u-cursor-pointer {
 	cursor: pointer;
+}
+
+.u-list-none {
+	list-style: none;
 }
