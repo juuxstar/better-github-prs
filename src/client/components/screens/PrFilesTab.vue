@@ -374,7 +374,7 @@ export default class PrFilesTab extends Vue {
 
 	private _filesInitialized = false;
 
-	@Watch('files')
+	@Watch('files', { immediate : true })
 	onFilesChanged() {
 		this._contentCache.clear();
 		this.baseContent      = null;

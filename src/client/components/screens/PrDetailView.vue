@@ -351,10 +351,23 @@ export default class PrDetailView extends Vue {
 		return `#${n}`;
 	}
 
+	/** First file index not marked VIEWED on GitHub; 0 if none or all viewed. */
+	get firstNonViewedFileIndex(): number {
+		for (let i = 0; i < this.files.length; i++) {
+			if (this.viewedFiles[this.files[i].filename] !== 'VIEWED') {
+				return i;
+			}
+		}
+		return 0;
+	}
+
 	get initialFileIndex(): number {
 		const q   = this.$route.query.file;
 		const idx = typeof q === 'string' ? parseInt(q, 10) : NaN;
-		return isNaN(idx) ? 0 : idx;
+		if (!isNaN(idx)) {
+			return this.files.length && idx >= 0 && idx < this.files.length ? idx : 0;
+		}
+		return this.firstNonViewedFileIndex;
 	}
 
 	get reviewedCount(): number {
@@ -514,8 +527,10 @@ export default class PrDetailView extends Vue {
 		}
 		this.filesLoading = true;
 		try {
-			this.files = await GitHubClient.fetchPRFiles(this.owner, this.repo, this.prNumber);
-			await this.loadViewedState();
+			const fileList = await GitHubClient.fetchPRFiles(this.owner, this.repo, this.prNumber);
+			const result   = await GitHubClient.fetchPRFilesViewedState(this.owner, this.repo, this.prNumber);
+			this.applyViewedStateFromApi(fileList, result);
+			this.files = fileList;
 		}
 		catch {
 			this.files = [];
@@ -540,27 +555,32 @@ export default class PrDetailView extends Vue {
 		}
 	}
 
+	/** Apply GitHub viewed-file state for `fileList` so `files` and `viewedFiles` stay in sync for the child Files tab. */
+	private applyViewedStateFromApi(fileList: PRFile[], result: { prNodeId: string; viewedFiles: Record<string, string> }) {
+		this.prNodeId = result.prNodeId;
+		const byPath   = result.viewedFiles;
+		if (fileList.length) {
+			const merged: Record<string, string> = {};
+			for (const f of fileList) {
+				let state = byPath[f.filename];
+				if (state === undefined && f.previous_filename) {
+					state = byPath[f.previous_filename];
+				}
+				if (state !== undefined) {
+					merged[f.filename] = state;
+				}
+			}
+			this.viewedFiles = merged;
+		}
+		else {
+			this.viewedFiles = byPath;
+		}
+	}
+
 	async loadViewedState() {
 		try {
-			const result  = await GitHubClient.fetchPRFilesViewedState(this.owner, this.repo, this.prNumber);
-			this.prNodeId = result.prNodeId;
-			const byPath  = result.viewedFiles;
-			if (this.files.length) {
-				const merged: Record<string, string> = {};
-				for (const f of this.files) {
-					let state = byPath[f.filename];
-					if (state === undefined && f.previous_filename) {
-						state = byPath[f.previous_filename];
-					}
-					if (state !== undefined) {
-						merged[f.filename] = state;
-					}
-				}
-				this.viewedFiles = merged;
-			}
-			else {
-				this.viewedFiles = byPath;
-			}
+			const result = await GitHubClient.fetchPRFilesViewedState(this.owner, this.repo, this.prNumber);
+			this.applyViewedStateFromApi(this.files, result);
 		}
 		catch {
 			this.viewedFiles = {};
