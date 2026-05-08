@@ -883,6 +883,20 @@ class GitHubAPI {
 		}));
 	}
 
+	async createIssueComment(owner: string, repo: string, number: number, body: string): Promise<IssueComment> {
+		const c = await this.apiFetch(`/repos/${owner}/${repo}/issues/${number}/comments`, {
+			method : 'POST',
+			body   : JSON.stringify({ body }),
+		});
+		return {
+			id         : c.id,
+			body       : c.body || '',
+			user       : { login : c.user.login, avatar_url : c.user.avatar_url },
+			created_at : c.created_at,
+			html_url   : c.html_url,
+		};
+	}
+
 	async submitReview(owner: string, repo: string, number: number, commitId: string, pending: PendingComment[], event = 'COMMENT'): Promise<any> {
 		const comments = pending.map(c => ({
 			path : c.path,

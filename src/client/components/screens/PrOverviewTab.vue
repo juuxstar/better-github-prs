@@ -160,6 +160,46 @@
 									<span class="pr-detail-comment-badge">Conversation</span>
 								</div>
 								<div class="markdown-body pr-detail-comment-body" v-html="markdownConversation(item.comment.body)"></div>
+								<div class="pr-detail-issue-reply u-mt-2 u-flex u-flex-col u-gap-2">
+									<button
+										v-if="issueReplyDraftId !== item.comment.id"
+										type="button"
+										class="pr-detail-issue-reply-btn pr-overview-reply-hit pr-detail-compact-btn u-inline-flex u-items-center u-justify-center u-gap-1-5 u-py-0-5 u-px-2-5 u-fs-11 u-fw-600 u-cursor-pointer"
+										@click="openIssueReplyDraft(item.comment.id)"
+									>
+										Reply
+									</button>
+									<div v-else class="pr-detail-issue-reply-compose u-flex u-flex-col u-gap-2">
+										<textarea
+											v-model="issueReplyBody"
+											class="pr-detail-issue-reply-field u-w-full"
+											rows="3"
+											placeholder="Reply to this conversation…"
+											:disabled="issueReplySubmitting"
+											@keydown.meta.enter.prevent="submitIssueReply"
+											@keydown.ctrl.enter.prevent="submitIssueReply"
+										/>
+										<div class="u-flex u-gap-2 u-flex-wrap u-justify-end">
+											<button
+												type="button"
+												class="pr-detail-compact-btn u-fs-11 u-fw-600"
+												:disabled="issueReplySubmitting"
+												@click="cancelIssueReply"
+											>
+												Cancel
+											</button>
+											<button
+												type="button"
+												class="pr-detail-compact-btn u-fs-11 u-fw-600 pr-detail-issue-send"
+												:disabled="issueReplySubmitting || !issueReplyBody.trim()"
+												@click="submitIssueReply"
+											>
+												<span v-if="issueReplySubmitting" class="async-loader"></span>
+												<template v-else>Comment</template>
+											</button>
+										</div>
+									</div>
+								</div>
 							</template>
 							<template v-else>
 								<template v-if="item.thread.resolved && !isResolvedThreadExpanded(item.thread.id)">
@@ -184,6 +224,15 @@
 											>
 												<span v-if="resolveTogglingThreadId === item.thread.id" class="async-loader"></span>
 												<template v-else>Unresolve</template>
+											</button>
+											<button
+												v-if="item.thread.line != null"
+												type="button"
+												class="pr-overview-reply-hit pr-detail-thread-file-link-mini pr-detail-compact-btn u-inline-flex u-items-center u-justify-center u-gap-1-5 u-py-0-5 u-px-2-5 u-fs-11 u-fw-600 u-cursor-pointer"
+												title="Switch to Files, jump to comment"
+												@click.stop="emitOpenReviewInFiles(item.thread)"
+											>
+												File
 											</button>
 										</div>
 									</div>
@@ -215,11 +264,18 @@
 											</span>
 										</div>
 										<div class="pr-detail-comment-thread-header u-flex u-flex-wrap u-items-center u-gap-2">
-											<span class="pr-detail-comment-path">{{ item.thread.path }}</span>
-											<template v-if="item.thread.line != null">
-												<span class="pr-detail-comment-sep">&middot;</span>
-												<span class="pr-detail-comment-line">Line {{ item.thread.line }} ({{ item.thread.side }})</span>
-											</template>
+											<button
+												v-if="item.thread.line != null"
+												type="button"
+												class="pr-detail-thread-path-link pr-detail-compact-btn u-inline-flex u-items-baseline u-min-w-0 u-text-left u-p-0 u-m-0 u-border-none u-bg-transparent u-cursor-pointer"
+												title="Open this file at the comment in the Files tab"
+												@click="emitOpenReviewInFiles(item.thread)"
+											>
+												<span class="pr-detail-thread-path-text">{{ item.thread.path }}</span>
+												<span class="pr-detail-comment-sep u-flex-shrink-0">&middot;</span>
+												<span class="pr-detail-thread-line-snippet u-flex-shrink-0">Line {{ item.thread.line }} ({{ item.thread.side }})</span>
+											</button>
+											<span v-else class="pr-detail-comment-path">{{ item.thread.path }}</span>
 											<span class="pr-detail-comment-thread-status" :class="item.thread.resolved ? 'resolved' : 'open'">{{ item.thread.resolved ? "Resolved" : "Open" }}</span>
 										</div>
 									</div>
@@ -231,6 +287,15 @@
 											<span class="pr-detail-comment-badge">Review</span>
 										</div>
 										<div class="markdown-body pr-detail-comment-body" v-html="markdownReview(c.body)"></div>
+									</div>
+									<div class="pr-detail-review-thread-reply-footer u-mt-2">
+										<button
+											type="button"
+											class="pr-overview-reply-hit pr-detail-compact-btn u-inline-flex u-items-center u-justify-center u-gap-1-5 u-py-0-5 u-px-2-5 u-fs-11 u-fw-600 u-cursor-pointer"
+											@click.stop="openReviewReplyPopover(item.thread, $event)"
+										>
+											Reply
+										</button>
 									</div>
 								</template>
 							</template>
@@ -276,6 +341,25 @@
 				</div>
 			</section>
 		</div>
+
+		<Teleport to="body">
+			<comment-popover
+				v-if="reviewPopoverThread && reviewPopoverAnchor && reviewPopoverLine != null"
+				:thread="reviewPopoverThreadPayload"
+				:pending-comment="null"
+				:path="reviewPopoverThread.path"
+				:line="reviewPopoverLine"
+				:side="reviewPopoverSide"
+				:anchor-rect="reviewPopoverAnchor"
+				:line-content="reviewPopoverSuggestionLineSnippet"
+				:owner="owner"
+				:repo="repo"
+				:pr-number="prNumber"
+				:commit-id="commitId"
+				@close="closeReviewReplyPopover"
+				@comments-updated="onReviewPopoverCommentsUpdated"
+			/>
+		</Teleport>
 	</div>
 </template>
 
@@ -283,6 +367,7 @@
 import type { CheckAnnotation, CheckRunDetail, IssueComment, RepoLabel, ReviewComment } from '@/lib/api/githubClient';
 import GitHubClient, { stripCommentTypePrefix } from '@/lib/api/githubClient';
 import { renderGithubMarkdown }                 from '@/lib/githubMarkdown';
+import type { CommentThread }                    from '@/lib/diff/prDiffTypes';
 import { timeAgo }                              from '@/lib/utils';
 
 import { Component, Prop, Vue } from 'vue-facing-decorator';
@@ -300,10 +385,15 @@ interface OverviewThread {
 
 type OverviewRow = { kind: 'issue'; key: string; sortTime: number; comment: IssueComment } | { kind: 'review-thread'; key: string; sortTime: number; thread: OverviewThread };
 
-@Component({ emits : [ 'add-label', 'remove-label', 'comments-updated', 'approve-pr', 'merge-pr', 'close-pr', 'toggle-draft' ] })
+@Component({ emits : [ 'add-label', 'remove-label', 'comments-updated', 'approve-pr', 'merge-pr', 'close-pr', 'toggle-draft', 'open-review-in-files' ] })
 export default class PrOverviewTab extends Vue {
 
 	@Prop({ required : true }) readonly pr!: any;
+	@Prop({ required : true }) readonly owner!: string;
+	@Prop({ required : true }) readonly repo!: string;
+	@Prop({ required : true }) readonly prNumber!: number;
+	/** Head commit SHA; required when replying / applying suggestions */
+	@Prop({ required : true }) readonly commitId!: string;
 	@Prop({ required : true }) readonly checks!: CheckRunDetail[];
 	@Prop({ required : true }) readonly checksLoading!: boolean;
 	@Prop({ required : true }) readonly repoLabels!: RepoLabel[];
@@ -326,6 +416,33 @@ export default class PrOverviewTab extends Vue {
 
 	/** Review thread ids whose resolved threads are shown expanded (default collapsed). */
 	resolvedThreadsExpanded: Record<number, true> = {};
+
+	reviewPopoverThread: OverviewThread | null = null;
+	reviewPopoverAnchor: DOMRect | null = null;
+	reviewPopoverLine: number | null = null;
+	reviewPopoverSide: 'LEFT' | 'RIGHT' = 'RIGHT';
+
+	issueReplyDraftId: number | null = null;
+	issueReplyBody = '';
+	issueReplySubmitting = false;
+
+	get reviewPopoverThreadPayload(): CommentThread | null {
+		const t = this.reviewPopoverThread;
+		if (!t || t.line == null) {
+			return null;
+		}
+		return {
+			path     : t.path,
+			line     : t.line,
+			side     : this.toReviewSide(t.side),
+			comments : t.comments,
+		};
+	}
+
+	get reviewPopoverSuggestionLineSnippet(): string {
+		const first = this.reviewPopoverThread?.comments[0]?.body ?? '';
+		return stripCommentTypePrefix(first).split('\n')[0]?.trimEnd() ?? '';
+	}
 
 	/** Unresolved count / total rows (issue comments + review threads). Issue comments count as unresolved. */
 	get commentsUnresolvedTotalLabel(): string {
@@ -440,7 +557,7 @@ export default class PrOverviewTab extends Vue {
 				thread,
 			});
 		}
-		rows.sort((a, b) => a.sortTime - b.sortTime);
+		rows.sort((a, b) => b.sortTime - a.sortTime);
 		return rows;
 	}
 
@@ -580,6 +697,107 @@ export default class PrOverviewTab extends Vue {
 	toggleLabelDropdown() {
 		this.labelDropdownOpen = !this.labelDropdownOpen;
 		this.labelSearch       = '';
+	}
+
+	toReviewSide(side: string): 'LEFT' | 'RIGHT' {
+		return side === 'LEFT' ? 'LEFT' : 'RIGHT';
+	}
+
+	emitOpenReviewInFiles(thread: OverviewThread): void {
+		if (thread.line == null) {
+			return;
+		}
+		this.closeReviewReplyPopover();
+		this.$emit('open-review-in-files', {
+			path : thread.path,
+			line : thread.line,
+			side : this.toReviewSide(thread.side),
+		});
+	}
+
+	openReviewReplyPopover(thread: OverviewThread, e: MouseEvent): void {
+		if (thread.line == null || !thread.comments.length) {
+			return;
+		}
+		const raw = e.currentTarget;
+		let rect    = new DOMRect(24, Math.max(24, window.innerHeight * 0.15), 0, 28);
+		if (raw instanceof HTMLElement) {
+			rect = raw.getBoundingClientRect();
+		}
+		this.reviewPopoverThread = thread;
+		this.reviewPopoverLine   = thread.line;
+		this.reviewPopoverSide   = this.toReviewSide(thread.side);
+		this.reviewPopoverAnchor = rect;
+	}
+
+	closeReviewReplyPopover(): void {
+		this.reviewPopoverThread  = null;
+		this.reviewPopoverAnchor  = null;
+		this.reviewPopoverLine    = null;
+		this.reviewPopoverSide    = 'RIGHT';
+	}
+
+	onReviewPopoverCommentsUpdated(): void {
+		this.closeReviewReplyPopover();
+		this.$emit('comments-updated');
+	}
+
+	openIssueReplyDraft(commentId: number): void {
+		this.issueReplyDraftId = commentId;
+		this.issueReplyBody     = '';
+	}
+
+	cancelIssueReply(): void {
+		this.issueReplyDraftId = null;
+		this.issueReplyBody    = '';
+	}
+
+	async submitIssueReply(): Promise<void> {
+		if (!this.issueReplyBody.trim() || this.issueReplyDraftId == null || this.issueReplySubmitting) {
+			return;
+		}
+		this.issueReplySubmitting = true;
+		try {
+			await GitHubClient.createIssueComment(this.owner, this.repo, this.prNumber, this.issueReplyBody.trim());
+			this.issueReplyDraftId = null;
+			this.issueReplyBody    = '';
+			this.$emit('comments-updated');
+		}
+		catch (e: any) {
+			console.error('Failed to create issue comment:', e);
+		}
+		finally {
+			this.issueReplySubmitting = false;
+		}
+	}
+
+	onOverviewPopoverOutside(ev: MouseEvent): void {
+		if (!this.reviewPopoverThread) {
+			return;
+		}
+		const raw              = ev.target;
+		let el: Element | null = null;
+		if (raw instanceof Element) {
+			el = raw;
+		}
+		else if (raw instanceof Node) {
+			el = raw.parentElement;
+		}
+		if (!el) {
+			return;
+		}
+		if (el.closest('.comment-popover') || el.closest('.pr-overview-reply-hit') || el.closest('.pr-detail-thread-path-link')) {
+			return;
+		}
+		this.closeReviewReplyPopover();
+	}
+
+	mounted() {
+		document.addEventListener('mousedown', this.onOverviewPopoverOutside, true);
+	}
+
+	beforeUnmount() {
+		document.removeEventListener('mousedown', this.onOverviewPopoverOutside, true);
 	}
 
 	handleAddLabel(name: string) {

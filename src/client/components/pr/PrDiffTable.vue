@@ -1,6 +1,13 @@
 <template>
 	<table class="pr-diff-table" :style="tableStyle">
-		<tr v-for="(line, i) in lines" :key="i" class="pr-diff-row" :class="'pr-diff-row-' + line.type">
+		<tr
+			v-for="(line, i) in lines"
+			:key="i"
+			class="pr-diff-row"
+			:class="'pr-diff-row-' + line.type"
+			:data-diff-line="line.num != null ? String(line.num) : undefined"
+			:data-diff-side="side"
+		>
 			<td class="pr-diff-gutter gutter-commentable" :class="{ 'has-comment' : hasAnyCommentAt(line.num, side) }" @click="onGutterClick(line, $event)">
 				{{ line.num ?? "" }}
 				<span v-if="hasAnyCommentAt(line.num, side)" class="gutter-dot" :class="commentDotClass(line.num, side)"></span>

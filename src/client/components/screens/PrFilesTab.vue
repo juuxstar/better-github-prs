@@ -139,7 +139,9 @@ import type { CommentThread, DiffLine, ScrollSegment } from '@/lib/diff/prDiffTy
 
 import { Component, Prop, Vue, Watch } from 'vue-facing-decorator';
 
-@Component({ components : { DiffMinimap, PrDiffTable, PrFilesNavBar }, emits : [ 'update:fileIndex', 'update:viewed', 'add-pending', 'remove-pending', 'edit-pending', 'comments-updated' ] })
+export type ReviewThreadFocusRequest = { path: string; line: number; side: 'LEFT' | 'RIGHT'; nonce: number };
+
+@Component({ components : { DiffMinimap, PrDiffTable, PrFilesNavBar }, emits : [ 'update:fileIndex', 'update:viewed', 'add-pending', 'remove-pending', 'edit-pending', 'comments-updated', 'thread-focus-handled' ] })
 export default class PrFilesTab extends Vue {
 
 	@Prop({ required : true }) readonly files!: PRFile[];
@@ -159,6 +161,8 @@ export default class PrFilesTab extends Vue {
 	@Prop({ default : () => [] }) readonly reviewComments!: ReviewComment[];
 	@Prop({ default : () => [] }) readonly pendingComments!: PendingComment[];
 	@Prop({ default : '' }) readonly commitId!: string;
+	/** When present, selects the file and scrolls to the line — used from Overview navigation. */
+	@Prop({ default : null }) readonly threadFocusRequest!: ReviewThreadFocusRequest | null;
 
 	currentIndex = 0;
 	baseContent: string | null = null;
@@ -423,6 +427,225 @@ export default class PrFilesTab extends Vue {
 		}
 	}
 
+	@Watch('threadFocusRequest', { immediate : true })
+	async onThreadFocusRequest(req: ReviewThreadFocusRequest | null) {
+		if (!req) {
+			return;
+		}
+		const token = ++this._focusRequestToken;
+		try {
+			await this.applyThreadFocusRequest(req);
+		}
+		finally {
+			if (token === this._focusRequestToken && this.threadFocusRequest?.nonce === req.nonce) {
+				this.$emit('thread-focus-handled');
+			}
+		}
+	}
+
+	indexForFilename(path: string): number {
+		const i = this.files.findIndex(f => f.filename === path);
+		if (i >= 0) {
+			return i;
+		}
+		return this.files.findIndex(f => f.previous_filename === path);
+	}
+
+	private async waitContentIdle(timeoutMs = 25000): Promise<boolean> {
+		const deadline = Date.now() + timeoutMs;
+		while (this.contentLoading) {
+			if (Date.now() > deadline) {
+				return false;
+			}
+			await new Promise(resolve => setTimeout(resolve, 32));
+		}
+		await this.$nextTick();
+		return true;
+	}
+
+	private async settleDiffLayout(): Promise<void> {
+		await this.$nextTick();
+		await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+		this.measureLineHeight();
+		this.measureViewportHeight();
+		let waits = 0;
+		while (waits++ < 72) {
+			const needVp = !!(this.hasFullContent && !this.isAddedOrRemoved && this.viewportHeight <= 10);
+			const needLh = this.lineHeight < 8;
+			if (!needVp && !needLh) {
+				break;
+			}
+			await new Promise(resolve => requestAnimationFrame(resolve));
+			this.measureViewportHeight();
+			this.measureLineHeight();
+		}
+		this.applyVirtualScroll();
+	}
+
+	private linesForSide(side: 'LEFT' | 'RIGHT'): DiffLine[] {
+		const file = this.currentFile;
+		if (!file) {
+			return [];
+		}
+		if (!this.hasFullContent) {
+			if (!file.patch && !this.headContent && file.status !== 'removed') {
+				return [];
+			}
+			if (file.status === 'removed') {
+				return side === 'LEFT' ? this.parsedPatch.left : [];
+			}
+			if (file.status === 'added') {
+				return side === 'RIGHT' ? this.parsedPatch.right : [];
+			}
+			return side === 'LEFT' ? this.parsedPatch.left : this.parsedPatch.right;
+		}
+		if (this.currentFile.status === 'removed') {
+			return side === 'LEFT' ? this.leftLines : [];
+		}
+		if (this.currentFile.status === 'added') {
+			return side === 'RIGHT' ? this.rightLines : [];
+		}
+		return side === 'LEFT' ? this.leftLines : this.rightLines;
+	}
+
+	private lineSnippetAt(side: 'LEFT' | 'RIGHT', lineNum: number): string {
+		const lines = this.linesForSide(side);
+		const ln    = lines.find(l => l.num === lineNum);
+		return (ln?.content ?? '').trimEnd();
+	}
+
+	private async scrollVirtToSplitLine(side: 'LEFT' | 'RIGHT', lineNum: number): Promise<boolean> {
+		const segments = this.scrollSegments();
+		const maxV     = maxVirtualScrollTop(segments, this.viewportHeight, this.lineHeight);
+		const panelEl  = side === 'LEFT'
+			? (this.$refs.leftPanel as HTMLElement | undefined)
+			: (this.$refs.rightPanel as HTMLElement | undefined);
+		if (!panelEl || maxV <= 0) {
+			return false;
+		}
+
+		let lo = 0;
+		let hi = maxV;
+
+		for (let i = 0; i < 36; i++) {
+			const mid = (lo + hi) / 2;
+			this.virtualScrollTop = mid;
+			this.applyVirtualScroll();
+			await this.$nextTick();
+
+			await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+
+			const row = panelEl.querySelector(`tr[data-diff-line="${lineNum}"]`);
+			if (!row || !(row instanceof HTMLElement)) {
+				return false;
+			}
+
+			const rowRect      = row.getBoundingClientRect();
+			const panelRect    = panelEl.getBoundingClientRect();
+			const rowCenter    = rowRect.top + rowRect.height / 2;
+			const panelCenter  = panelRect.top + panelRect.height / 2;
+			const delta        = rowCenter - panelCenter;
+
+			if (Math.abs(delta) <= 14 || hi - lo < this.lineHeight * 0.15) {
+				break;
+			}
+			if (delta < -0.5) {
+				lo = mid + 1e-6;
+			}
+			else {
+				hi = mid - 1e-6;
+			}
+		}
+		this.applyVirtualScroll();
+		await this.$nextTick();
+		await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+		return true;
+	}
+
+	private revealLineInViewer(side: 'LEFT' | 'RIGHT', lineNum: number): boolean {
+		const root = this.$el as HTMLElement;
+		const sel    = `tr[data-diff-line="${lineNum}"][data-diff-side="${side}"]`;
+
+		const useVirt = !!(this.hasFullContent && !this.isAddedOrRemoved && this.viewportHeight > 10);
+		let rowEl: HTMLElement | null = null;
+
+		if (!useVirt) {
+			rowEl = root.querySelector(sel) as HTMLElement | null;
+		}
+		else {
+			const panelEl = side === 'LEFT' ? root.querySelector('.pr-diff-panel-left') : root.querySelector('.pr-diff-panel-right');
+			rowEl          = panelEl?.querySelector(`tr[data-diff-line="${lineNum}"]`) as HTMLElement | null ?? null;
+		}
+
+		if (!rowEl) {
+			rowEl = root.querySelector(sel) as HTMLElement | null;
+		}
+		if (!rowEl) {
+			rowEl = root.querySelector(`tr[data-diff-line="${lineNum}"]`) as HTMLElement | null;
+		}
+		if (!rowEl) {
+			return false;
+		}
+		rowEl.scrollIntoView({ block : 'center', inline : 'nearest', behavior : 'auto' });
+		return true;
+	}
+
+	private attachPopoverAtReviewLine(side: 'LEFT' | 'RIGHT', lineNum: number): void {
+		const root       = this.$el as HTMLElement;
+		const gutterCell = root.querySelector(
+			`${side === 'LEFT' ? '.pr-diff-panel-left' : '.pr-diff-panel-right'} tr[data-diff-line="${lineNum}"] td.pr-diff-gutter`
+		) as HTMLElement | null
+				?? root.querySelector(`tr[data-diff-line="${lineNum}"][data-diff-side="${side}"] td.pr-diff-gutter`) as HTMLElement | null;
+
+		const path = this.currentFile.filename;
+		const lc   = this.lineSnippetAt(side, lineNum);
+
+		const rect = gutterCell?.getBoundingClientRect() ?? new DOMRect(120, window.innerHeight * 0.2, 0, 22);
+		this.activeComment = {
+			path,
+			line        : lineNum,
+			side,
+			rect,
+			lineContent : lc,
+		};
+	}
+
+	private async applyThreadFocusRequest(req: ReviewThreadFocusRequest): Promise<void> {
+		const idx = this.indexForFilename(req.path);
+		if (idx < 0) {
+			return;
+		}
+		if (this.currentIndex !== idx) {
+			this.currentIndex = idx;
+		}
+		const idle = await this.waitContentIdle();
+		if (!idle) {
+			return;
+		}
+		await this.settleDiffLayout();
+
+		const sideUse = req.side ?? 'RIGHT';
+		let revealed  = false;
+
+		if (this.hasFullContent && !this.isAddedOrRemoved) {
+			if (this.viewportHeight <= 10) {
+				await new Promise(resolve => requestAnimationFrame(resolve));
+				this.measureViewportHeight();
+			}
+			if (this.viewportHeight > 10 && maxVirtualScrollTop(this.scrollSegments(), this.viewportHeight, this.lineHeight) > 0) {
+				revealed = await this.scrollVirtToSplitLine(sideUse, req.line);
+			}
+		}
+		if (!revealed) {
+			revealed = this.revealLineInViewer(sideUse, req.line);
+		}
+		if (!revealed) {
+			return;
+		}
+		await this.settleDiffLayout();
+		this.attachPopoverAtReviewLine(sideUse, req.line);
+	}
+
 	mounted() {
 		window.addEventListener('resize', this._resizeHandler);
 		document.addEventListener('mousedown', this._popoverClickOutside, true);
@@ -519,6 +742,7 @@ export default class PrFilesTab extends Vue {
 	}
 
 	private _debugLogged = false;
+	private _focusRequestToken = 0;
 
 	applyVirtualScroll() {
 		const segments        = this.scrollSegments();

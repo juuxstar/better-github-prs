@@ -104,6 +104,10 @@
 					<pr-overview-tab
 						v-if="activeTab === 'overview'"
 						:pr="pr"
+						:owner="owner"
+						:repo="repo"
+						:pr-number="routeBackedPrNumber"
+						:commit-id="pr.head?.sha || ''"
 						:checks="checks"
 						:checks-loading="checksLoading"
 						:repo-labels="repoLabels"
@@ -119,6 +123,7 @@
 						@add-label="addLabel"
 						@remove-label="removeLabel"
 						@comments-updated="onCommentsUpdated"
+						@open-review-in-files="onOpenReviewInFiles"
 						@approve-pr="approvePr"
 						@merge-pr="openMergeConfirm"
 						@close-pr="openCloseConfirm"
@@ -133,6 +138,7 @@
 						:base-ref="pr.base.sha"
 						:head-ref="pr.head.sha"
 						:initial-file-index="initialFileIndex"
+						:thread-focus-request="pendingThreadFocus"
 						:pr-title="pr.title"
 						:pr-number="routeBackedPrNumber"
 						:pr-author-login="pr.user.login"
@@ -149,6 +155,7 @@
 						@remove-pending="onRemovePending"
 						@edit-pending="onEditPending"
 						@comments-updated="onCommentsUpdated"
+						@thread-focus-handled="onThreadFocusHandled"
 					/>
 				</div>
 			</div>
@@ -305,6 +312,17 @@ export default class PrDetailView extends Vue {
 	closeConfirmError = '';
 	closingPr = false;
 	approvePrError = '';
+	/** When set while the Files tab is shown, selects the diff file and focuses the comment thread there. Cleared after the tab handles it. */
+	pendingThreadFocus: null | { path: string; line: number; side: 'LEFT' | 'RIGHT'; nonce: number } = null;
+
+	_checksTimer: ReturnType<typeof setInterval> | null = null;
+	_unsubColorScheme: (() => void) | null = null;
+	_onDocumentVisibility: (() => void) | null = null;
+	_originalTitle = '';
+	mergePollCancelled = false;
+	_loadFilesPromise: Promise<void> | null = null;
+
+	readonly timeAgo = timeAgo;
 
 	@Watch('tabSize')
 	onTabSizeChanged(val: number) {
@@ -356,14 +374,6 @@ export default class PrDetailView extends Vue {
 	get hljsThemesFiltered() {
 		return hljsThemesForResolvedScheme(this.resolvedScheme);
 	}
-
-	readonly timeAgo = timeAgo;
-
-	private _checksTimer: ReturnType<typeof setInterval> | null = null;
-	private _unsubColorScheme: (() => void) | null = null;
-	private _onDocumentVisibility: (() => void) | null = null;
-	private _originalTitle = '';
-	private mergePollCancelled = false;
 
 	get prNumber(): number {
 		return parseInt(this.number, 10);
@@ -665,23 +675,34 @@ export default class PrDetailView extends Vue {
 		}
 	}
 
-	async loadFiles() {
-		if (this.files.length || this.filesLoading) {
+	async loadFiles(): Promise<void> {
+		if (this.files.length) {
 			return;
 		}
-		this.filesLoading = true;
-		try {
-			const fileList = await GitHubClient.fetchPRFiles(this.owner, this.repo, this.prNumber);
-			const result   = await GitHubClient.fetchPRFilesViewedState(this.owner, this.repo, this.prNumber);
-			this.applyViewedStateFromApi(fileList, result);
-			this.files = fileList;
+		if (this._loadFilesPromise) {
+			return this._loadFilesPromise;
 		}
-		catch {
-			this.files = [];
-		}
-		finally {
-			this.filesLoading = false;
-		}
+		this.filesLoading      = true;
+		this._loadFilesPromise = (async () => {
+			try {
+				const fileList = await GitHubClient.fetchPRFiles(this.owner, this.repo, this.prNumber);
+				const result   = await GitHubClient.fetchPRFilesViewedState(this.owner, this.repo, this.prNumber);
+				this.applyViewedStateFromApi(fileList, result);
+				this.files = fileList;
+			}
+			catch {
+				this.files = [];
+			}
+			finally {
+				this.filesLoading      = false;
+				this._loadFilesPromise = null;
+			}
+		})();
+		return this._loadFilesPromise;
+	}
+
+	async ensureFilesLoaded(): Promise<void> {
+		await this.loadFiles();
 	}
 
 	async loadReviewComments() {
@@ -736,8 +757,24 @@ export default class PrDetailView extends Vue {
 		const base     = `/pull-request/${this.owner}/${this.repo}/${this.number}/${tab}`;
 		this.$router.replace({ path : base });
 		if (tab === 'files') {
-			this.loadFiles();
+			void this.loadFiles();
 		}
+	}
+
+	async onOpenReviewInFiles(nav: { path: string; line: number; side: 'LEFT' | 'RIGHT' }) {
+		await this.ensureFilesLoaded();
+		const side = nav.side === 'LEFT' ? 'LEFT' : 'RIGHT';
+		this.switchTab('files');
+		this.pendingThreadFocus = {
+			path  : nav.path,
+			line  : nav.line,
+			side,
+			nonce : Date.now(),
+		};
+	}
+
+	onThreadFocusHandled() {
+		this.pendingThreadFocus = null;
 	}
 
 	onFileIndexChange(index: number) {
