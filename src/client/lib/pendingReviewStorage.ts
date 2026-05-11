@@ -1,13 +1,18 @@
 import type { CommentType, PendingComment } from '@/lib/api/githubClient';
 
-const STORAGE_PREFIX = 'githubPR:pendingReview:';
-const FORMAT_VERSION = 1;
+const STORAGE_PREFIX        = 'prism:pendingReview:';
+const LEGACY_STORAGE_PREFIX = [ 'github', 'PR:pendingReview:' ].join('');
+const FORMAT_VERSION        = 1;
 
 const COMMENT_TYPES: ReadonlySet<string> = new Set([ 'suggestion', 'change-required', 'question' ]);
 const SIDES: ReadonlySet<string>         = new Set([ 'LEFT', 'RIGHT' ]);
 
 function storageKey(owner: string, repo: string, number: number): string {
 	return `${STORAGE_PREFIX}${owner}:${repo}:${number}`;
+}
+
+function legacyStorageKey(owner: string, repo: string, number: number): string {
+	return `${LEGACY_STORAGE_PREFIX}${owner}:${repo}:${number}`;
 }
 
 function isRecord(x: unknown): x is Record<string, unknown> {
@@ -47,10 +52,15 @@ export function loadPendingReview(owner: string, repo: string, number: number, h
 	if (typeof localStorage === 'undefined') {
 		return null;
 	}
-	const key = storageKey(owner, repo, number);
+	const key     = storageKey(owner, repo, number);
+	let sourceKey = key;
 	let raw: string | null;
 	try {
 		raw = localStorage.getItem(key);
+		if (raw == null || raw === '') {
+			sourceKey = legacyStorageKey(owner, repo, number);
+			raw       = localStorage.getItem(sourceKey);
+		}
 	}
 	catch {
 		return null;
@@ -65,7 +75,7 @@ export function loadPendingReview(owner: string, repo: string, number: number, h
 	}
 	catch {
 		try {
-			localStorage.removeItem(key);
+			localStorage.removeItem(sourceKey);
 		}
 		catch {
 			/* Ignore */
@@ -83,9 +93,9 @@ export function loadPendingReview(owner: string, repo: string, number: number, h
 		return null;
 	}
 	if (parsed.headSha !== headSha) {
-		console.info('[githubPR] Discarding stored pending review: head SHA changed');
+		console.info('[PRism] Discarding stored pending review: head SHA changed');
 		try {
-			localStorage.removeItem(key);
+			localStorage.removeItem(sourceKey);
 		}
 		catch {
 			/* Ignore */
@@ -110,6 +120,15 @@ export function loadPendingReview(owner: string, repo: string, number: number, h
 			lineContent : item.lineContent,
 		});
 	}
+	if (sourceKey !== key) {
+		try {
+			localStorage.setItem(key, raw);
+			localStorage.removeItem(sourceKey);
+		}
+		catch {
+			/* Ignore */
+		}
+	}
 	return comments;
 }
 
@@ -121,6 +140,7 @@ export function savePendingReview(owner: string, repo: string, number: number, h
 	try {
 		if (comments.length === 0) {
 			localStorage.removeItem(key);
+			localStorage.removeItem(legacyStorageKey(owner, repo, number));
 			return;
 		}
 		localStorage.setItem(

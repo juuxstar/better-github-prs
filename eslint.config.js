@@ -5,7 +5,7 @@ import globals from "globals";
 import vueEslintParser from "vue-eslint-parser";
 
 export default [
-	{ ignores: ["node_modules/**", "dist/**", "eslint.config.js"] },
+	{ ignores: ["node_modules/**", "dist/**", "build/**", "eslint.config.js"] },
 	...lcb,
 	...pluginVue.configs["flat/recommended"],
 

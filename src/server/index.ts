@@ -1,4 +1,4 @@
-import express                   from 'express';
+import express, { type Request } from 'express';
 import { existsSync }            from 'fs';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import { dirname, resolve }      from 'path';
@@ -6,22 +6,21 @@ import { fileURLToPath }         from 'url';
 
 const moduleDir = dirname(fileURLToPath(import.meta.url));
 
-const CLIENT_ID       = 'Ov23li1HRzJJ8O56Pz5p';
+const CLIENT_ID       = process.env.GITHUB_CLIENT_ID || 'Ov23li1HRzJJ8O56Pz5p';
 const DEVICE_CODE_URL = 'https://github.com/login/device/code';
 const TOKEN_URL       = 'https://github.com/login/oauth/access_token';
-const SCOPES          = 'read:user repo';
 
 const app = express();
 app.use(express.json());
 
-// --- OAuth device-flow routes ---
+// --- GitHub App device-flow routes ---
 
 app.post('/api/auth/device-code', async function(_req, res) {
 	try {
 		const response = await fetch(DEVICE_CODE_URL, {
 			method  : 'POST',
 			headers : { 'Content-Type' : 'application/json', 'Accept' : 'application/json' },
-			body    : JSON.stringify({ client_id : CLIENT_ID, scope : SCOPES }),
+			body    : JSON.stringify({ client_id : CLIENT_ID }),
 		});
 		res.json(await response.json());
 	}
@@ -68,8 +67,9 @@ app.use(
 
 				// Express.json() consumes the raw body stream before the proxy sees it,
 				// so re-serialize and rewrite Content-Length for POST/PATCH/PUT requests.
-				if (req.body && typeof req.body === 'object' && Object.keys(req.body).length > 0) {
-					const bodyData = JSON.stringify(req.body);
+				const body = (req as Request).body;
+				if (body && typeof body === 'object' && Object.keys(body).length > 0) {
+					const bodyData = JSON.stringify(body);
 					proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData).toString());
 					proxyReq.write(bodyData);
 				}

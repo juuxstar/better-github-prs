@@ -14,7 +14,7 @@ import { iconSvg } from '@/lib/icons';
 
 import { Component, Prop, Vue } from 'vue-facing-decorator';
 
-/** Sign-in screen that prompts the user to authenticate via GitHub OAuth. */
+/** Sign-in screen that prompts the user to authenticate with the GitHub App. */
 @Component({ emits : [ 'login' ] })
 export default class AuthScreen extends Vue {
 

@@ -35,7 +35,7 @@ import { iconSvg } from '@/lib/icons';
 import { Component, Prop, Vue } from 'vue-facing-decorator';
 
 /**
- * OAuth device-flow screen showing the user code and a link to GitHub for authorization.
+ * GitHub App device-flow screen showing the user code and a link to GitHub for authorization.
  */
 @Component({ emits : [ 'cancel' ] })
 export default class DeviceScreen extends Vue {

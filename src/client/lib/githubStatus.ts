@@ -1,4 +1,4 @@
-/** GitHub.com status (Statuspage) — pull/API/git areas that affect the PR dashboard. */
+/** GitHub.com status (Statuspage) — pull/API/git areas that affect PRism. */
 const SUMMARY_URL          = 'https://www.githubstatus.com/api/v2/summary.json';
 const DASHBOARD_COMPONENTS = [ 'Pull Requests', 'API Requests', 'Git Operations' ] as const;
 
@@ -71,7 +71,7 @@ function combinedLevel(
 }
 
 /**
- * Fetches the public summary from githubstatus.com and reports whether the PR dashboard should show a notice.
+ * Fetches the public summary from githubstatus.com and reports whether PRism should show a notice.
  * Safe to call from the browser (CORS allows `*`).
  */
 export async function fetchGithubDashboardStatus(): Promise<GithubDashboardStatusResult> {
@@ -97,7 +97,7 @@ export async function fetchGithubDashboardStatus(): Promise<GithubDashboardStatu
 	const degradedKeys = key.filter(c => c.status !== 'operational');
 	if (degradedKeys.length > 0) {
 		messageParts.push(
-			`PR dashboard: ${degradedKeys.map(c => `${c.name} — ${formatComponentStatus(c.status)}`).join('; ')}`
+			`PRism: ${degradedKeys.map(c => `${c.name} — ${formatComponentStatus(c.status)}`).join('; ')}`
 		);
 	}
 	const level: GithubStatusBannerLevel = overall === 'bad' ? 'critical' : 'warning';

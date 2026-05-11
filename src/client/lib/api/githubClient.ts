@@ -241,13 +241,34 @@ class GitHubAPI {
 		return this.fetchAllPages('/user/orgs');
 	}
 
-	async fetchAllAccessiblePRs() {
-		const orgs    = await this.fetchUserOrgs();
-		const queries = [ `type:pr state:open user:${this.user.login}` ];
+	async fetchAccessibleRepos(): Promise<AccessibleRepo[]> {
+		const repos = await this.fetchAllPages('/user/repos?affiliation=owner,collaborator,organization_member&sort=updated');
+		return repos
+			.map((repo: any) => ({
+				fullName   : repo.full_name as string,
+				ownerLogin : repo.owner?.login as string,
+				ownerType  : repo.owner?.type as string,
+			}))
+			.filter((repo: AccessibleRepo) => repo.fullName && repo.ownerLogin)
+			.sort((a: AccessibleRepo, b: AccessibleRepo) => a.fullName.localeCompare(b.fullName));
+	}
+
+	async fetchAllAccessiblePRs(repos: AccessibleRepo[] = []) {
+		const orgs     = await this.fetchUserOrgs();
+		const querySet = new Set<string>([ `type:pr state:open user:${this.user.login}` ]);
 		for (const org of orgs) {
-			queries.push(`type:pr state:open org:${org.login}`);
+			querySet.add(`type:pr state:open org:${org.login}`);
+		}
+		for (const repo of repos) {
+			if (repo.ownerType === 'Organization') {
+				querySet.add(`type:pr state:open org:${repo.ownerLogin}`);
+			}
+			else if (repo.ownerLogin !== this.user.login) {
+				querySet.add(`type:pr state:open user:${repo.ownerLogin}`);
+			}
 		}
 
+		const queries       = [ ...querySet ];
 		const results       = await Promise.all(queries.map(q => this.searchPRs(q)));
 		const seen          = new Set<number>();
 		const merged: any[] = [];
@@ -973,6 +994,12 @@ export interface PRStats {
 	changedFiles: number;
 	additions: number;
 	deletions: number;
+}
+
+export interface AccessibleRepo {
+	fullName: string;
+	ownerLogin: string;
+	ownerType: string;
 }
 
 export interface ChecksSummary {

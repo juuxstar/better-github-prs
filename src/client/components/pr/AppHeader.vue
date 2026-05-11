@@ -2,7 +2,7 @@
 	<header class="header u-flex u-items-center u-justify-between u-py-3-5 u-px-6 u-flex-shrink-0 u-sticky u-top-0 u-z-100">
 		<div class="header-left u-flex u-items-center u-gap-3">
 			<span class="logo u-text-primary" v-html="$icon('github', 24)"></span>
-			<h1 class="title u-m-0 u-fs-18 u-fw-600 u-text-primary">PR Dashboard</h1>
+			<h1 class="title u-m-0 u-fs-18 u-fw-600 u-text-primary">PRism</h1>
 			<select class="repo-select u-fs-13 u-truncate u-ml-4" :value="currentRepo" @change="onRepoChange">
 				<option value="">All repositories</option>
 				<option v-for="repo in repos" :key="repo" :value="repo">{{ repo }}</option>

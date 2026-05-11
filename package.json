@@ -1,10 +1,12 @@
 {
+	"name": "prism",
 	"private": true,
 	"type": "module",
 	"scripts": {
 		"dev": "concurrently \"vite\" \"tsx watch src/server/index.ts\"",
-		"build": "vite build",
-		"start": "tsx src/server/index.ts",
+		"build": "vite build && tsc -p tsconfig.server.json",
+		"start": "node build/server/index.js",
+		"start:dev": "tsx src/server/index.ts",
 		"lint": "eslint .",
 		"lint:fix": "eslint . --fix",
 		"format": "prettier --write .",

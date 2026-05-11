@@ -42,8 +42,8 @@
 
 <script lang="ts">
 import { cancelPolling, clearToken, getStoredToken, pollForToken, startDeviceFlow, storeToken } from '@/lib/api/auth';
-import type { ApiError } from '@/lib/api/githubClient';
-import GitHubClient      from '@/lib/api/githubClient';
+import type { AccessibleRepo, ApiError } from '@/lib/api/githubClient';
+import GitHubClient                      from '@/lib/api/githubClient';
 import { fetchGithubDashboardStatus, type GithubStatusBannerLevel }                             from '@/lib/githubStatus';
 
 import { Component, Vue, Watch } from 'vue-facing-decorator';
@@ -57,6 +57,7 @@ export default class App extends Vue {
 	currentRepo = localStorage.getItem('selectedRepo') || '';
 	selectedTeam = [ 'alpha', 'beta', 'gamma' ].includes(localStorage.getItem('selectedTeam')!) ? localStorage.getItem('selectedTeam')! : 'alpha';
 	allPRs: any[] = [];
+	accessibleRepos: AccessibleRepo[] = [];
 	user: any = null;
 	errorMessage = '';
 	deviceCode = '';
@@ -79,6 +80,9 @@ export default class App extends Vue {
 
 	get repos(): string[] {
 		const set = new Set<string>();
+		this.accessibleRepos.forEach(repo => {
+			set.add(repo.fullName);
+		});
 		this.allPRs.forEach(pr => {
 			const m = pr.repository_url.match(/repos\/([^/]+\/[^/]+)/);
 			if (m) {
@@ -279,9 +283,10 @@ export default class App extends Vue {
 		this.githubStatusVisible               = false;
 		clearToken();
 		GitHubClient.clear();
-		this.allPRs   = [];
-		this.user     = null;
-		this.branches = [];
+		this.allPRs          = [];
+		this.accessibleRepos = [];
+		this.user            = null;
+		this.branches        = [];
 		this.showScreen('auth');
 	}
 
@@ -324,7 +329,7 @@ export default class App extends Vue {
 			];
 		}
 		else {
-			this.allPRs = await GitHubClient.fetchAllAccessiblePRs();
+			this.allPRs = await GitHubClient.fetchAllAccessiblePRs(this.accessibleRepos);
 		}
 		const logins = [ ...new Set(this.allPRs.map(pr => pr.user.login)) ];
 		await GitHubClient.fetchUserFirstNames(logins);
@@ -482,7 +487,8 @@ export default class App extends Vue {
 		this.showScreen('loading');
 		try {
 			await GitHubClient.fetchCurrentUser();
-			this.user = GitHubClient.getUser();
+			this.user            = GitHubClient.getUser();
+			this.accessibleRepos = await GitHubClient.fetchAccessibleRepos();
 			await this.fetchPRs(this.currentRepo || undefined);
 			this.showScreen('pr');
 			this.fetchAsyncData();
