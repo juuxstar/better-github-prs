@@ -366,8 +366,8 @@
 <script lang="ts">
 import type { CheckAnnotation, CheckRunDetail, IssueComment, RepoLabel, ReviewComment } from '@/lib/api/githubClient';
 import GitHubClient, { stripCommentTypePrefix } from '@/lib/api/githubClient';
+import type { CommentThread }                   from '@/lib/diff/prDiffTypes';
 import { renderGithubMarkdown }                 from '@/lib/githubMarkdown';
-import type { CommentThread }                    from '@/lib/diff/prDiffTypes';
 import { timeAgo }                              from '@/lib/utils';
 
 import { Component, Prop, Vue } from 'vue-facing-decorator';
@@ -720,7 +720,7 @@ export default class PrOverviewTab extends Vue {
 			return;
 		}
 		const raw = e.currentTarget;
-		let rect    = new DOMRect(24, Math.max(24, window.innerHeight * 0.15), 0, 28);
+		let rect  = new DOMRect(24, Math.max(24, window.innerHeight * 0.15), 0, 28);
 		if (raw instanceof HTMLElement) {
 			rect = raw.getBoundingClientRect();
 		}
@@ -731,10 +731,10 @@ export default class PrOverviewTab extends Vue {
 	}
 
 	closeReviewReplyPopover(): void {
-		this.reviewPopoverThread  = null;
-		this.reviewPopoverAnchor  = null;
-		this.reviewPopoverLine    = null;
-		this.reviewPopoverSide    = 'RIGHT';
+		this.reviewPopoverThread = null;
+		this.reviewPopoverAnchor = null;
+		this.reviewPopoverLine   = null;
+		this.reviewPopoverSide   = 'RIGHT';
 	}
 
 	onReviewPopoverCommentsUpdated(): void {
@@ -744,7 +744,7 @@ export default class PrOverviewTab extends Vue {
 
 	openIssueReplyDraft(commentId: number): void {
 		this.issueReplyDraftId = commentId;
-		this.issueReplyBody     = '';
+		this.issueReplyBody    = '';
 	}
 
 	cancelIssueReply(): void {

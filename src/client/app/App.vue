@@ -61,10 +61,10 @@ import type { AccessibleRepo, ApiError } from '@/lib/api/githubClient';
 import GitHubClient                      from '@/lib/api/githubClient';
 import { fetchGithubDashboardStatus, type GithubStatusBannerLevel }                             from '@/lib/githubStatus';
 
-import { defineAsyncComponent } from 'vue';
+import { defineAsyncComponent }  from 'vue';
 import { Component, Vue, Watch } from 'vue-facing-decorator';
 
-type OverlayPr = { owner: string; repo: string; number: number };
+interface OverlayPr { owner: string; repo: string; number: number }
 const PrDetailView = defineAsyncComponent(() => import('@/components/screens/PrDetailView.vue'));
 
 /** Dashboard root — manages auth, data fetching, polling, and screen navigation. */

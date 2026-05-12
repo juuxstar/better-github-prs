@@ -80,10 +80,10 @@
 
 <script lang="ts">
 import type { BotCounts, ChecksSummary, PRStats } from '@/lib/api/githubClient';
-import GitHubClient from '@/lib/api/githubClient';
+import GitHubClient         from '@/lib/api/githubClient';
 import { isPwaDisplayMode } from '@/lib/displayMode';
-import { iconSvg }  from '@/lib/icons';
-import { timeAgo }  from '@/lib/utils';
+import { iconSvg }          from '@/lib/icons';
+import { timeAgo }          from '@/lib/utils';
 
 import { Component, Prop, Vue } from 'vue-facing-decorator';
 

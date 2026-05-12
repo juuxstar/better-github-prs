@@ -6,9 +6,9 @@ import { fileURLToPath }         from 'url';
 
 const moduleDir = dirname(fileURLToPath(import.meta.url));
 
-const CLIENT_ID       = process.env.GITHUB_CLIENT_ID || 'Ov23li1HRzJJ8O56Pz5p';
-const DEVICE_CODE_URL = 'https://github.com/login/device/code';
-const TOKEN_URL       = 'https://github.com/login/oauth/access_token';
+const CLIENT_ID              = process.env.GITHUB_CLIENT_ID || 'Ov23li1HRzJJ8O56Pz5p';
+const DEVICE_CODE_URL        = 'https://github.com/login/device/code';
+const TOKEN_URL              = 'https://github.com/login/oauth/access_token';
 const REQUIRED_GITHUB_SCOPES = [ 'repo', 'read:org' ];
 const GITHUB_SCOPES          = [
 	...new Set([

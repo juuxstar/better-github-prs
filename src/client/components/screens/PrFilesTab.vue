@@ -139,7 +139,7 @@ import type { CommentThread, DiffLine, ScrollSegment } from '@/lib/diff/prDiffTy
 
 import { Component, Prop, Vue, Watch } from 'vue-facing-decorator';
 
-export type ReviewThreadFocusRequest = { path: string; line: number; side: 'LEFT' | 'RIGHT'; nonce: number };
+export interface ReviewThreadFocusRequest { path: string; line: number; side: 'LEFT' | 'RIGHT'; nonce: number }
 
 @Component({ components : { DiffMinimap, PrDiffTable, PrFilesNavBar }, emits : [ 'update:fileIndex', 'update:viewed', 'add-pending', 'remove-pending', 'edit-pending', 'comments-updated', 'thread-focus-handled' ] })
 export default class PrFilesTab extends Vue {
@@ -528,7 +528,7 @@ export default class PrFilesTab extends Vue {
 		let hi = maxV;
 
 		for (let i = 0; i < 36; i++) {
-			const mid = (lo + hi) / 2;
+			const mid             = (lo + hi) / 2;
 			this.virtualScrollTop = mid;
 			this.applyVirtualScroll();
 			await this.$nextTick();
@@ -540,11 +540,11 @@ export default class PrFilesTab extends Vue {
 				return false;
 			}
 
-			const rowRect      = row.getBoundingClientRect();
-			const panelRect    = panelEl.getBoundingClientRect();
-			const rowCenter    = rowRect.top + rowRect.height / 2;
-			const panelCenter  = panelRect.top + panelRect.height / 2;
-			const delta        = rowCenter - panelCenter;
+			const rowRect     = row.getBoundingClientRect();
+			const panelRect   = panelEl.getBoundingClientRect();
+			const rowCenter   = rowRect.top + rowRect.height / 2;
+			const panelCenter = panelRect.top + panelRect.height / 2;
+			const delta       = rowCenter - panelCenter;
 
 			if (Math.abs(delta) <= 14 || hi - lo < this.lineHeight * 0.15) {
 				break;
@@ -564,18 +564,11 @@ export default class PrFilesTab extends Vue {
 
 	private revealLineInViewer(side: 'LEFT' | 'RIGHT', lineNum: number): boolean {
 		const root = this.$el as HTMLElement;
-		const sel    = `tr[data-diff-line="${lineNum}"][data-diff-side="${side}"]`;
+		const sel  = `tr[data-diff-line="${lineNum}"][data-diff-side="${side}"]`;
 
 		const useVirt = !!(this.hasFullContent && !this.isAddedOrRemoved && this.viewportHeight > 10);
-		let rowEl: HTMLElement | null = null;
-
-		if (!useVirt) {
-			rowEl = root.querySelector(sel) as HTMLElement | null;
-		}
-		else {
-			const panelEl = side === 'LEFT' ? root.querySelector('.pr-diff-panel-left') : root.querySelector('.pr-diff-panel-right');
-			rowEl          = panelEl?.querySelector(`tr[data-diff-line="${lineNum}"]`) as HTMLElement | null ?? null;
-		}
+		const panelEl = side === 'LEFT' ? root.querySelector('.pr-diff-panel-left') : root.querySelector('.pr-diff-panel-right');
+		let rowEl     = useVirt ? panelEl?.querySelector(`tr[data-diff-line="${lineNum}"]`) as HTMLElement | null ?? null : root.querySelector(sel) as HTMLElement | null;
 
 		if (!rowEl) {
 			rowEl = root.querySelector(sel) as HTMLElement | null;
@@ -600,7 +593,7 @@ export default class PrFilesTab extends Vue {
 		const path = this.currentFile.filename;
 		const lc   = this.lineSnippetAt(side, lineNum);
 
-		const rect = gutterCell?.getBoundingClientRect() ?? new DOMRect(120, window.innerHeight * 0.2, 0, 22);
+		const rect         = gutterCell?.getBoundingClientRect() ?? new DOMRect(120, window.innerHeight * 0.2, 0, 22);
 		this.activeComment = {
 			path,
 			line        : lineNum,
