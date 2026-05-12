@@ -5,7 +5,15 @@
 			<span class="pr-count u-fs-11 u-fw-600">{{ prs.length }}</span>
 		</div>
 		<div ref="list" class="pr-list u-w-full" :class="{ 'drop-over' : dropOver }" @dragstart="onDragStart" @dragend="onDragEnd" @dragover="onDragOver" @dragleave="onDragLeave" @drop="onDrop">
-			<pr-item v-for="pr in prs" :key="pr.id" :pr="pr" :hidden-labels="hiddenLabels" :show-repo="showRepo" :async-version="asyncVersion" />
+			<pr-item
+				v-for="pr in prs"
+				:key="pr.id"
+				:pr="pr"
+				:hidden-labels="hiddenLabels"
+				:show-repo="showRepo"
+				:async-version="asyncVersion"
+				@open-pr="$emit('open-pr', $event)"
+			/>
 		</div>
 	</div>
 </template>
@@ -14,7 +22,7 @@
 import { Component, Prop, Vue } from 'vue-facing-decorator';
 
 /** Single column of PR items with a header, count badge, and drag-and-drop support. */
-@Component({ emits : [ 'drop' ] })
+@Component({ emits : [ 'drop', 'open-pr' ] })
 export default class PrColumn extends Vue {
 
 	@Prop({ required : true }) readonly title!: string;

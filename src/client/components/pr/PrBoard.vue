@@ -4,30 +4,30 @@
 			<div class="pr-column pr-column-split">
 				<create-pr-section v-if="branches.length > 0" :branches="branches" @create-pr="$emit('create-pr', $event)" />
 				<div v-if="orderedOther.length" class="pr-subcolumn">
-					<pr-column title="Other PRs" :prs="orderedOther" :hidden-labels="emptySet" section="other" :show-repo="showRepo" :async-version="asyncVersion" @drop="handleDrop" />
+					<pr-column title="Other PRs" :prs="orderedOther" :hidden-labels="emptySet" section="other" :show-repo="showRepo" :async-version="asyncVersion" @drop="handleDrop" @open-pr="$emit('open-pr', $event)" />
 				</div>
 				<div class="pr-subcolumn">
-					<pr-column title="Alpha Review" :prs="orderedAlpha" :hidden-labels="alphaHidden" section="alpha" :show-repo="showRepo" :async-version="asyncVersion" @drop="handleDrop" />
+					<pr-column title="Alpha Review" :prs="orderedAlpha" :hidden-labels="alphaHidden" section="alpha" :show-repo="showRepo" :async-version="asyncVersion" @drop="handleDrop" @open-pr="$emit('open-pr', $event)" />
 				</div>
 				<div class="pr-subcolumn">
-					<pr-column title="Beta Review" :prs="orderedBeta" :hidden-labels="betaHidden" section="beta" :show-repo="showRepo" :async-version="asyncVersion" @drop="handleDrop" />
+					<pr-column title="Beta Review" :prs="orderedBeta" :hidden-labels="betaHidden" section="beta" :show-repo="showRepo" :async-version="asyncVersion" @drop="handleDrop" @open-pr="$emit('open-pr', $event)" />
 				</div>
 			</div>
 			<div class="pr-column">
-				<pr-column title="Your Review" :prs="orderedGamma" :hidden-labels="gammaHiddenLabels" section="gamma" :show-repo="showRepo" :async-version="asyncVersion" @drop="handleDrop" />
+				<pr-column title="Your Review" :prs="orderedGamma" :hidden-labels="gammaHiddenLabels" section="gamma" :show-repo="showRepo" :async-version="asyncVersion" @drop="handleDrop" @open-pr="$emit('open-pr', $event)" />
 			</div>
 			<div class="pr-column pr-column-split">
 				<div class="pr-subcolumn">
-					<pr-column title="Waiting on Checks" :prs="waitingOnChecks" :hidden-labels="mergeHidden" section="merge" :show-repo="showRepo" :async-version="asyncVersion" @drop="handleDrop" />
+					<pr-column title="Waiting on Checks" :prs="waitingOnChecks" :hidden-labels="mergeHidden" section="merge" :show-repo="showRepo" :async-version="asyncVersion" @drop="handleDrop" @open-pr="$emit('open-pr', $event)" />
 				</div>
 				<div class="pr-subcolumn">
-					<pr-column title="Ready to Merge" :prs="readyMerge" :hidden-labels="mergeHidden" section="merge" :show-repo="showRepo" :async-version="asyncVersion" @drop="handleDrop" />
+					<pr-column title="Ready to Merge" :prs="readyMerge" :hidden-labels="mergeHidden" section="merge" :show-repo="showRepo" :async-version="asyncVersion" @drop="handleDrop" @open-pr="$emit('open-pr', $event)" />
 				</div>
 			</div>
 		</div>
 		<div v-if="isDraftMode" class="drafts-view u-py-4 u-px-6 u-m-auto u-w-full">
 			<div class="pr-column drafts-column">
-				<pr-column title="Drafts" :prs="filteredPRs" :hidden-labels="emptySet" section="drafts" :show-repo="showRepo" :async-version="asyncVersion" @drop="handleDrop" />
+				<pr-column title="Drafts" :prs="filteredPRs" :hidden-labels="emptySet" section="drafts" :show-repo="showRepo" :async-version="asyncVersion" @drop="handleDrop" @open-pr="$emit('open-pr', $event)" />
 			</div>
 		</div>
 		<div v-if="isEmpty" class="empty-state u-flex u-flex-col u-items-center u-justify-center u-text-center u-gap-3-5 u-fs-15 u-text-tertiary u-py-25 u-px-8">
@@ -56,7 +56,7 @@ const SECTION_LABELS: Record<string, { add: string; remove: string[] }> = {
 };
 
 /** Main board layout that categorizes PRs into columns and handles drag-and-drop reordering. */
-@Component({ emits : [ 'create-pr', 'api-error', 'show-error', 'prs-changed' ] })
+@Component({ emits : [ 'create-pr', 'api-error', 'show-error', 'prs-changed', 'open-pr' ] })
 export default class PrBoard extends Vue {
 
 	@Prop({ required : true }) readonly allPrs!: any[];

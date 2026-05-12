@@ -71,6 +71,7 @@ class GitHubAPI {
 	private botCommentCache = new Map<number, BotCounts>();
 	private prStatsCache = new Map<number, PRStats>();
 	private checksCache = new Map<number, ChecksSummary>();
+	private oauthScopes = new Set<string>();
 
 	setToken(t: string) {
 		this.token = t;
@@ -81,10 +82,14 @@ class GitHubAPI {
 	getUser() {
 		return this.user;
 	}
+	hasOAuthScope(scope: string) {
+		return this.oauthScopes.has(scope);
+	}
 
 	clear() {
 		this.token = null;
 		this.user  = null;
+		this.oauthScopes.clear();
 		this.userNameCache.clear();
 		this.clearAsyncCaches();
 	}
@@ -141,6 +146,11 @@ class GitHubAPI {
 				});
 			}
 			throw apiError(formatGithubRestErrorMessage(response.status, body), { status : response.status });
+		}
+
+		const scopes = response.headers.get('x-oauth-scopes');
+		if (scopes) {
+			this.oauthScopes = new Set(scopes.split(',').map(scope => scope.trim()).filter(Boolean));
 		}
 
 		return response.json();
@@ -238,7 +248,15 @@ class GitHubAPI {
 	}
 
 	async fetchUserOrgs() {
-		return this.fetchAllPages('/user/orgs');
+		try {
+			return await this.fetchAllPages('/user/orgs');
+		}
+		catch (error: any) {
+			if (error.status === 403 && error.message?.toLowerCase().includes('read:org')) {
+				return [];
+			}
+			throw error;
+		}
 	}
 
 	async fetchAccessibleRepos(): Promise<AccessibleRepo[]> {

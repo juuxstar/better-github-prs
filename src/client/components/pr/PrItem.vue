@@ -1,5 +1,16 @@
 <template>
-	<div class="pr-item u-flex u-gap-3-5" :data-pr-id="pr.id" draggable="true" @dragstart="onDragStart" @click="onRowClick">
+	<a
+		class="pr-item u-flex u-gap-3-5"
+		:href="detailUrl"
+		:aria-label="'Open pull request #' + pr.number"
+		:data-pr-id="pr.id"
+		draggable="true"
+		target="_blank"
+		rel="noopener"
+		@click="onRowClick"
+		@auxclick="onRowAuxClick"
+		@dragstart="onDragStart"
+	>
 		<div class="pr-number-col u-flex u-flex-col u-items-center u-flex-shrink-0 u-gap-1 u-pt-0-5">
 			<span class="pr-number u-fs-13 u-fw-600 u-text-tertiary u-leading-1-4 u-whitespace-nowrap">#{{ pr.number }}</span>
 			<span class="pr-author u-text-secondary u-fw-500 u-fs-11 u-whitespace-nowrap">{{ authorName }}</span>
@@ -64,12 +75,13 @@
 			</div>
 			<span class="async-loader"></span>
 		</div>
-	</div>
+	</a>
 </template>
 
 <script lang="ts">
 import type { BotCounts, ChecksSummary, PRStats } from '@/lib/api/githubClient';
 import GitHubClient from '@/lib/api/githubClient';
+import { isPwaDisplayMode } from '@/lib/displayMode';
 import { iconSvg }  from '@/lib/icons';
 import { timeAgo }  from '@/lib/utils';
 
@@ -84,7 +96,7 @@ const SIZE_LABELS: Record<string, number> = {
 };
 
 /** Individual PR card displaying title, labels, metadata, checks, stats, and size indicator. */
-@Component
+@Component({ emits : [ 'open-pr' ] })
 export default class PrItem extends Vue {
 
 	@Prop({ required : true }) readonly pr!: any;
@@ -103,12 +115,20 @@ export default class PrItem extends Vue {
 		return m ? m[1] : '';
 	}
 
-	get detailUrl(): string {
+	get detailParams(): { owner: string; repo: string; number: number } | null {
 		const m = this.pr.repository_url.match(/repos\/([^/]+)\/([^/]+)/);
 		if (!m) {
+			return null;
+		}
+		return { owner : m[1], repo : m[2], number : this.pr.number };
+	}
+
+	get detailUrl(): string {
+		const params = this.detailParams;
+		if (!params) {
 			return '';
 		}
-		return `/pull-request/${m[1]}/${m[2]}/${this.pr.number}`;
+		return `/pull-request/${params.owner}/${params.repo}/${params.number}`;
 	}
 
 	get sizeDots(): number {
@@ -174,13 +194,44 @@ export default class PrItem extends Vue {
 		return iconSvg('botFace', 14, 14, `class="bot-icon bot-icon-${severity} u-flex-shrink-0"`);
 	}
 
-	onRowClick() {
-		if (!this.detailUrl) {
+	onRowClick(e: MouseEvent) {
+		const params = this.detailParams;
+		if (!this.detailUrl || !params) {
+			e.preventDefault();
 			return;
 		}
-		const target = `githubpr-pr-${this.repo.replace(/\//g, '-')}-${this.pr.number}`;
-		const w      = window.open(this.detailUrl, target);
-		w?.focus();
+		if (e.button !== 0) {
+			return;
+		}
+		e.preventDefault();
+		if (isPwaDisplayMode()) {
+			this.$emit('open-pr', params);
+			return;
+		}
+		this.openInBrowserTab();
+	}
+
+	onRowAuxClick(e: MouseEvent) {
+		const params = this.detailParams;
+		if (e.button !== 1 || !this.detailUrl || !params) {
+			return;
+		}
+		e.preventDefault();
+		if (isPwaDisplayMode()) {
+			this.$emit('open-pr', params);
+			return;
+		}
+		this.openInBrowserTab();
+	}
+
+	private openInBrowserTab() {
+		const tab = window.open('about:blank', '_blank');
+		if (!tab) {
+			window.open(this.detailUrl, '_blank');
+			return;
+		}
+		tab.opener        = null;
+		tab.location.href = this.detailUrl;
 	}
 
 	onDragStart(e: DragEvent) {
@@ -193,11 +244,14 @@ export default class PrItem extends Vue {
 
 <style>
 .pr-item {
+	display: flex;
 	padding: var(--u-4) 0;
 	border-bottom: 1px solid var(--border);
 	transition: background var(--transition);
 	cursor: pointer;
 	border-radius: var(--radius-sm);
+	color: inherit;
+	text-decoration: none;
 
 	&:hover {
 		/* Column is already --bg-secondary; use tertiary so hover reads as a lift */

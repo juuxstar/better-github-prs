@@ -1,7 +1,7 @@
 <template>
 	<header class="header u-flex u-items-center u-justify-between u-py-3-5 u-px-6 u-flex-shrink-0 u-sticky u-top-0 u-z-100">
 		<div class="header-left u-flex u-items-center u-gap-3">
-			<span class="logo u-text-primary" v-html="$icon('github', 24)"></span>
+			<img class="logo" src="/icons/prism.svg" alt="" width="36" height="36" />
 			<h1 class="title u-m-0 u-fs-18 u-fw-600 u-text-primary">PRism</h1>
 			<select class="repo-select u-fs-13 u-truncate u-ml-4" :value="currentRepo" @change="onRepoChange">
 				<option value="">All repositories</option>
@@ -21,30 +21,27 @@
 			></button>
 		</div>
 		<div class="header-right u-flex u-items-center u-gap-3">
-			<appearance-select class="header-appearance" />
 			<select class="repo-select u-fs-13 u-truncate" :value="selectedTeam" @change="onTeamChange">
 				<option value="alpha">Alpha Team</option>
 				<option value="beta">Beta Team</option>
 				<option value="gamma">Gamma Team</option>
 			</select>
-			<template v-if="user">
-				<div class="user-info u-flex u-items-center u-gap-2-5">
-					<img class="avatar" :src="user.avatar_url" :alt="user.login" />
-					<span class="username u-fs-14 u-fw-500 u-text-secondary">{{ user.login }}</span>
-				</div>
-				<button class="btn-logout" @click="$emit('logout')">Sign out</button>
-			</template>
+			<settings-popup v-if="user" :user="settingsUser" @logout="$emit('logout')" />
 		</div>
 	</header>
 </template>
 
 <script lang="ts">
-import { iconSvg } from '@/lib/icons';
+import SettingsPopup from '@/components/pr/SettingsPopup.vue';
+import { iconSvg }   from '@/lib/icons';
 
 import { Component, Prop, Vue } from 'vue-facing-decorator';
 
 /** Top navigation bar with repo/team selectors, type filters, refresh, and user info. */
-@Component({ emits : [ 'set-type-filter', 'set-repo', 'set-team', 'refresh', 'logout' ] })
+@Component({
+	components : { SettingsPopup },
+	emits      : [ 'set-type-filter', 'set-repo', 'set-team', 'refresh', 'logout' ],
+})
 export default class AppHeader extends Vue {
 
 	@Prop({ required : true }) readonly user!: Record<string, unknown> | null;
@@ -56,6 +53,16 @@ export default class AppHeader extends Vue {
 
 	get refreshBtnHtml(): string {
 		return iconSvg('refresh', 14);
+	}
+
+	get settingsUser(): { login: string; avatar_url?: string } | null {
+		if (!this.user) {
+			return null;
+		}
+		return {
+			login      : String(this.user.login ?? ''),
+			avatar_url : typeof this.user.avatar_url === 'string' ? this.user.avatar_url : undefined,
+		};
 	}
 
 	onRepoChange(e: Event) {
@@ -77,6 +84,13 @@ export default class AppHeader extends Vue {
 
 html[data-color-scheme="light"] .header {
 	background: #e4e7ec;
+}
+
+.logo {
+	width: 36px;
+	height: 36px;
+	border-radius: 9px;
+	flex-shrink: 0;
 }
 
 .repo-select {
@@ -137,31 +151,6 @@ html[data-color-scheme="light"] .header {
 .type-filter-btn.active {
 	color: var(--text-primary);
 	background: var(--bg-tertiary);
-}
-
-.avatar {
-	width: 32px;
-	height: 32px;
-	border-radius: 50%;
-	border: 2px solid var(--border);
-}
-
-.btn-logout {
-	background: none;
-	border: 1px solid var(--border);
-	color: var(--text-secondary);
-	padding: 6px 12px;
-	border-radius: var(--radius-sm);
-	font-size: 13px;
-	cursor: pointer;
-	transition: all var(--transition);
-	font-family: inherit;
-}
-
-.btn-logout:hover {
-	color: var(--accent-red);
-	border-color: var(--accent-red);
-	background: var(--danger-bg-subtle);
 }
 
 .btn-refresh {

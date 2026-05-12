@@ -6,7 +6,10 @@
 			<div class="pr-detail-main u-flex u-flex-col u-flex-1 u-min-h-0 u-overflow-hidden">
 				<header class="pr-detail-header u-flex u-items-center u-justify-between u-py-2-5 u-px-4 u-flex-shrink-0 u-sticky u-top-0 u-z-100 u-gap-4">
 					<div class="pr-detail-header-left u-flex u-items-center u-gap-2-5 u-min-w-0 u-flex-1">
-						<a href="/" class="pr-detail-back u-flex-shrink-0" title="Back to dashboard">&larr;</a>
+						<button v-if="embedded" type="button" class="pr-detail-back u-flex-shrink-0" title="Back to dashboard" aria-label="Back to dashboard" @click="$emit('close')">
+							&larr;
+						</button>
+						<a v-else href="/" class="pr-detail-back u-flex-shrink-0" title="Back to dashboard">&larr;</a>
 						<span
 							class="pr-detail-badge u-flex-shrink-0"
 							:class="{
@@ -64,39 +67,8 @@
 								Submit Review ({{ pendingComments.length }})
 							</button>
 						</template>
-						<span
-							class="pr-detail-control-wrap has-tooltip u-inline-flex u-items-center u-relative"
-							data-tooltip="App colours: light, dark, or Auto (follow system).&#10;Saved in this browser."
-						>
-							<appearance-select class="pr-detail-appearance" />
-						</span>
-						<span
-							class="pr-detail-control-wrap has-tooltip u-inline-flex u-items-center u-relative"
-							data-tooltip="Syntax highlighting theme for code in the diff (matches current app mode).&#10;Your choice is saved per light and dark mode."
-						>
-							<select class="pr-detail-tab-size" :value="hljsTheme" @change="hljsTheme = ($event.target as HTMLSelectElement).value">
-								<option v-for="t in hljsThemesFiltered" :key="t.id" :value="t.id">{{ t.label }}</option>
-							</select>
-						</span>
-						<span
-							class="pr-detail-control-wrap has-tooltip u-inline-flex u-items-center u-relative"
-							data-tooltip="Font size for line numbers and code in the Files tab.&#10;Saved in this browser."
-						>
-							<select class="pr-detail-tab-size" :value="diffFontSize" @change="diffFontSize = +($event.target as HTMLSelectElement).value">
-								<option v-for="p in diffFontSizePresets" :key="p.value" :value="p.value">{{ p.label }}</option>
-							</select>
-						</span>
-						<span
-							class="pr-detail-control-wrap has-tooltip u-inline-flex u-items-center u-relative"
-							data-tooltip="How many spaces wide each tab character appears in diff code.&#10;Saved in this browser."
-						>
-							<select class="pr-detail-tab-size" :value="tabSize" @change="tabSize = +($event.target as HTMLSelectElement).value">
-								<option :value="2">2 spaces</option>
-								<option :value="4">4 spaces</option>
-								<option :value="8">8 spaces</option>
-							</select>
-						</span>
 						<a :href="pr.html_url" target="_blank" rel="noopener" class="pr-detail-github-link">GitHub &rarr;</a>
+						<settings-popup v-if="currentUser" :user="currentUser" @logout="handleLogout" />
 					</div>
 				</header>
 
@@ -226,14 +198,16 @@ import PrErrorModal                             from '@/components/pr/PrErrorMod
 import PrMergeConfirmModal                      from '@/components/pr/PrMergeConfirmModal.vue';
 import PrTitleEditModal                         from '@/components/pr/PrTitleEditModal.vue';
 import PrWhitespaceViewedModal                  from '@/components/pr/PrWhitespaceViewedModal.vue';
-import { getStoredToken }                       from '@/lib/api/auth';
-import type { CheckRunDetail, IssueComment, PendingComment, PRFile, RepoLabel, ReviewComment }    from '@/lib/api/githubClient';
+import SettingsPopup                            from '@/components/pr/SettingsPopup.vue';
+import { clearToken, getStoredToken }           from '@/lib/api/auth';
+import type { CheckRunDetail, IssueComment, PendingComment, PRFile, RepoLabel, ReviewComment }     from '@/lib/api/githubClient';
 import GitHubClient                             from '@/lib/api/githubClient';
 import { isWhitespaceOnlyFileChange }           from '@/lib/diff/patchDiff';
 import { loadPendingReview, savePendingReview } from '@/lib/pendingReviewStorage';
 import type { ResolvedScheme }                  from '@/lib/theme/colorScheme';
 import { getResolvedScheme, subscribeColorScheme } from '@/lib/theme/colorScheme';
-import { getStoredHljsThemeId, hljsThemesForResolvedScheme, loadHljsTheme, setStoredHljsThemeId } from '@/lib/theme/hljsTheme';
+import { getDiffFontSize, getDiffTabSize, setDiffFontSize, setDiffTabSize, subscribeDiffSettings } from '@/lib/theme/diffSettings';
+import { getStoredHljsThemeId, loadHljsTheme, setStoredHljsThemeId } from '@/lib/theme/hljsTheme';
 import { timeAgo }                              from '@/lib/utils';
 
 import { Component, Prop, Vue, Watch } from 'vue-facing-decorator';
@@ -245,10 +219,11 @@ import { Component, Prop, Vue, Watch } from 'vue-facing-decorator';
 		PrDetailTabBar,
 		PrErrorModal,
 		PrMergeConfirmModal,
+		SettingsPopup,
 		PrTitleEditModal,
 		PrWhitespaceViewedModal,
 	},
-	emits : [ 'update:fileIndex' ],
+	emits : [ 'update:fileIndex', 'close', 'logout' ],
 })
 export default class PrDetailView extends Vue {
 
@@ -259,6 +234,7 @@ export default class PrDetailView extends Vue {
 	@Prop({ required : true }) readonly repo!: string;
 	@Prop({ required : true }) readonly number!: string;
 	@Prop({ required : true }) readonly tab!: string;
+	@Prop({ default : false }) readonly embedded!: boolean;
 
 	pr: any = null;
 	checks: CheckRunDetail[] = [];
@@ -269,24 +245,12 @@ export default class PrDetailView extends Vue {
 	filesLoading = false;
 	error = '';
 	activeTab: 'overview' | 'files' = 'overview';
-	tabSize = parseInt(localStorage.getItem('diffTabSize') || '4', 10);
-
-	diffFontSize = (() => {
-		const raw = localStorage.getItem('diffFontSize');
-		const n   = raw ? parseInt(raw, 10) : 12;
-		return [ 11, 12, 13, 14, 16 ].includes(n) ? n : 12;
-	})();
-
-	readonly diffFontSizePresets = [
-		{ value : 11, label : 'x-small' },
-		{ value : 12, label : 'small' },
-		{ value : 13, label : 'medium' },
-		{ value : 14, label : 'large' },
-		{ value : 16, label : 'x-large' },
-	] as const;
+	tabSize = getDiffTabSize();
+	diffFontSize = getDiffFontSize();
 
 	resolvedScheme: ResolvedScheme = getResolvedScheme();
 	hljsTheme = getStoredHljsThemeId(getResolvedScheme());
+	currentUser: { login: string; avatar_url?: string } | null = null;
 	viewedFiles: Record<string, string> = {};
 	reviewComments: ReviewComment[] = [];
 	issueComments: IssueComment[] = [];
@@ -317,21 +281,23 @@ export default class PrDetailView extends Vue {
 
 	_checksTimer: ReturnType<typeof setInterval> | null = null;
 	_unsubColorScheme: (() => void) | null = null;
+	_unsubDiffSettings: (() => void) | null = null;
 	_onDocumentVisibility: (() => void) | null = null;
 	_originalTitle = '';
 	mergePollCancelled = false;
 	_loadFilesPromise: Promise<void> | null = null;
+	embeddedFileIndex = 0;
 
 	readonly timeAgo = timeAgo;
 
 	@Watch('tabSize')
 	onTabSizeChanged(val: number) {
-		localStorage.setItem('diffTabSize', String(val));
+		this.tabSize = setDiffTabSize(val);
 	}
 
 	@Watch('diffFontSize')
 	onDiffFontSizeChanged(val: number) {
-		localStorage.setItem('diffFontSize', String(val));
+		this.diffFontSize = setDiffFontSize(val);
 	}
 
 	@Watch('hljsTheme')
@@ -369,10 +335,6 @@ export default class PrDetailView extends Vue {
 		}
 		this.pendingComments = [];
 		void this.loadAll();
-	}
-
-	get hljsThemesFiltered() {
-		return hljsThemesForResolvedScheme(this.resolvedScheme);
 	}
 
 	get prNumber(): number {
@@ -425,6 +387,9 @@ export default class PrDetailView extends Vue {
 	}
 
 	get initialFileIndex(): number {
+		if (this.embedded) {
+			return this.files.length && this.embeddedFileIndex >= 0 && this.embeddedFileIndex < this.files.length ? this.embeddedFileIndex : this.firstNonViewedFileIndex;
+		}
 		const q   = this.$route.query.file;
 		const idx = typeof q === 'string' ? parseInt(q, 10) : NaN;
 		if (!isNaN(idx)) {
@@ -494,13 +459,14 @@ export default class PrDetailView extends Vue {
 
 	mounted() {
 		this._originalTitle = document.title;
-		if (this.tab === 'files') {
+		if (!this.embedded && this.tab === 'files') {
 			this.activeTab = 'files';
 		}
 		const token = getStoredToken();
 		if (token) {
 			GitHubClient.setToken(token);
 		}
+		void this.loadCurrentUser();
 		this.resolvedScheme = getResolvedScheme();
 		this.hljsTheme      = getStoredHljsThemeId(this.resolvedScheme);
 		loadHljsTheme(this.hljsTheme);
@@ -510,6 +476,7 @@ export default class PrDetailView extends Vue {
 			this.hljsTheme      = getStoredHljsThemeId(next);
 			loadHljsTheme(this.hljsTheme);
 		});
+		this._unsubDiffSettings    = subscribeDiffSettings(() => this.syncDiffSettings());
 		this._onDocumentVisibility = () => {
 			if (document.visibilityState !== 'visible' || this.loading || this.error || !this.pr || this.mergingPr) {
 				return;
@@ -522,6 +489,8 @@ export default class PrDetailView extends Vue {
 
 	beforeUnmount() {
 		this.mergePollCancelled = true;
+		this._unsubDiffSettings?.();
+		this._unsubDiffSettings = null;
 		if (this._onDocumentVisibility) {
 			document.removeEventListener('visibilitychange', this._onDocumentVisibility);
 			this._onDocumentVisibility = null;
@@ -531,6 +500,45 @@ export default class PrDetailView extends Vue {
 		this._unsubColorScheme?.();
 		this._unsubColorScheme = null;
 		document.title         = this._originalTitle;
+	}
+
+	private syncDiffSettings(): void {
+		this.tabSize      = getDiffTabSize();
+		this.diffFontSize = getDiffFontSize();
+	}
+
+	private async loadCurrentUser(): Promise<void> {
+		const cached = GitHubClient.getUser();
+		if (cached?.login) {
+			this.currentUser = {
+				login      : cached.login,
+				avatar_url : cached.avatar_url,
+			};
+			return;
+		}
+		if (!getStoredToken()) {
+			return;
+		}
+		try {
+			const user       = await GitHubClient.fetchCurrentUser();
+			this.currentUser = {
+				login      : user.login,
+				avatar_url : user.avatar_url,
+			};
+		}
+		catch {
+			this.currentUser = null;
+		}
+	}
+
+	handleLogout() {
+		if (this.embedded) {
+			this.$emit('logout');
+			return;
+		}
+		clearToken();
+		GitHubClient.clear();
+		this.$router.push('/');
 	}
 
 	/** Pick up merges or other GitHub-side updates when returning to this tab. */
@@ -754,8 +762,10 @@ export default class PrDetailView extends Vue {
 
 	switchTab(tab: 'overview' | 'files') {
 		this.activeTab = tab;
-		const base     = `/pull-request/${this.owner}/${this.repo}/${this.number}/${tab}`;
-		this.$router.replace({ path : base });
+		if (!this.embedded) {
+			const base = `/pull-request/${this.owner}/${this.repo}/${this.number}/${tab}`;
+			this.$router.replace({ path : base });
+		}
 		if (tab === 'files') {
 			void this.loadFiles();
 		}
@@ -778,6 +788,10 @@ export default class PrDetailView extends Vue {
 	}
 
 	onFileIndexChange(index: number) {
+		if (this.embedded) {
+			this.embeddedFileIndex = index;
+			return;
+		}
 		this.$router.replace({
 			path  : `/pull-request/${this.owner}/${this.repo}/${this.number}/files`,
 			query : { file : String(index) },
@@ -1164,11 +1178,16 @@ html[data-color-scheme="light"] .pr-detail-header {
 }
 
 .pr-detail-back {
+	border: 0;
+	background: transparent;
+	padding: 0;
 	color: var(--text-secondary);
 	text-decoration: none;
 	font-size: 18px;
 	line-height: 1;
 	transition: color var(--transition);
+	cursor: pointer;
+	font-family: inherit;
 
 	&:hover {
 		color: var(--text-primary);

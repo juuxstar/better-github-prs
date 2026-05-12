@@ -9,6 +9,13 @@ const moduleDir = dirname(fileURLToPath(import.meta.url));
 const CLIENT_ID       = process.env.GITHUB_CLIENT_ID || 'Ov23li1HRzJJ8O56Pz5p';
 const DEVICE_CODE_URL = 'https://github.com/login/device/code';
 const TOKEN_URL       = 'https://github.com/login/oauth/access_token';
+const REQUIRED_GITHUB_SCOPES = [ 'repo', 'read:org' ];
+const GITHUB_SCOPES          = [
+	...new Set([
+		...REQUIRED_GITHUB_SCOPES,
+		...(process.env.GITHUB_OAUTH_SCOPES || '').split(/\s+/).filter(Boolean),
+	]),
+].join(' ');
 
 const app = express();
 app.use(express.json());
@@ -20,7 +27,7 @@ app.post('/api/auth/device-code', async function(_req, res) {
 		const response = await fetch(DEVICE_CODE_URL, {
 			method  : 'POST',
 			headers : { 'Content-Type' : 'application/json', 'Accept' : 'application/json' },
-			body    : JSON.stringify({ client_id : CLIENT_ID }),
+			body    : JSON.stringify({ client_id : CLIENT_ID, scope : GITHUB_SCOPES }),
 		});
 		res.json(await response.json());
 	}

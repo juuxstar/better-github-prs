@@ -12,7 +12,7 @@
 				<div class="cp-body">
 					<template v-for="(seg, si) in parseBody(c.body)" :key="si">
 						<div v-if="seg.type === 'text' && seg.content.trim()" class="markdown-body cp-markdown" v-html="commentMarkdownHtml(seg.content)"></div>
-						<div v-else class="cp-suggestion-block u-overflow-hidden u-my-1-5">
+						<div v-else-if="seg.type === 'suggestion'" class="cp-suggestion-block u-overflow-hidden u-my-1-5">
 							<div class="cp-suggestion-header u-py-1 u-px-2 u-fs-11 u-fw-600 u-text-tertiary">Suggested change</div>
 							<div class="cp-suggestion-diff u-fs-12 u-font-mono">
 								<div class="cp-diff-del u-flex">

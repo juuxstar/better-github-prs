@@ -36,8 +36,23 @@
 		@api-error="handleBoardApiError"
 		@show-error="showError"
 		@prs-changed="handlePRsChanged"
+		@open-pr="openPrOverlay"
 	/>
 	<error-screen v-if="currentScreen === 'error'" :message="errorMessage" @retry="handleRetry" />
+	<Transition name="pr-detail-slide">
+		<div v-if="selectedOverlayPr" class="pr-detail-slide-over u-fixed u-inset-0">
+			<pr-detail-view
+				:key="overlayPrKey"
+				:owner="selectedOverlayPr.owner"
+				:repo="selectedOverlayPr.repo"
+				:number="String(selectedOverlayPr.number)"
+				tab="overview"
+				embedded
+				@close="closePrOverlay"
+				@logout="handleLogout"
+			/>
+		</div>
+	</Transition>
 </template>
 
 <script lang="ts">
@@ -46,10 +61,18 @@ import type { AccessibleRepo, ApiError } from '@/lib/api/githubClient';
 import GitHubClient                      from '@/lib/api/githubClient';
 import { fetchGithubDashboardStatus, type GithubStatusBannerLevel }                             from '@/lib/githubStatus';
 
+import { defineAsyncComponent } from 'vue';
 import { Component, Vue, Watch } from 'vue-facing-decorator';
 
+type OverlayPr = { owner: string; repo: string; number: number };
+const PrDetailView = defineAsyncComponent(() => import('@/components/screens/PrDetailView.vue'));
+
 /** Dashboard root — manages auth, data fetching, polling, and screen navigation. */
-@Component
+@Component({
+	components : {
+		PrDetailView,
+	},
+})
 export default class App extends Vue {
 
 	currentScreen = 'auth';
@@ -71,6 +94,7 @@ export default class App extends Vue {
 	refreshing = false;
 	loginDisabled = false;
 	dataVersion = 0;
+	selectedOverlayPr: OverlayPr | null = null;
 
 	private _rateLimitTimer: ReturnType<typeof setTimeout> | null = null;
 	private _checksTimer: ReturnType<typeof setInterval> | null = null;
@@ -90,6 +114,11 @@ export default class App extends Vue {
 			}
 		});
 		return [ ...set ].sort((a, b) => a.localeCompare(b));
+	}
+
+	get overlayPrKey(): string {
+		const pr = this.selectedOverlayPr;
+		return pr ? `${pr.owner}/${pr.repo}/${pr.number}` : '';
 	}
 
 	@Watch('repos')
@@ -276,6 +305,7 @@ export default class App extends Vue {
 	// ── Logout ─────────────────────────────────────────────
 
 	handleLogout() {
+		this.selectedOverlayPr = null;
 		this.stopChecksPolling();
 		this.stopGithubStatusPolling();
 		this._githubStatusDismissedFingerprint = null;
@@ -470,6 +500,14 @@ export default class App extends Vue {
 		this.dataVersion++;
 	}
 
+	openPrOverlay(pr: OverlayPr) {
+		this.selectedOverlayPr = pr;
+	}
+
+	closePrOverlay() {
+		this.selectedOverlayPr = null;
+	}
+
 	// ── Retry ──────────────────────────────────────────────
 
 	handleRetry() {
@@ -487,6 +525,13 @@ export default class App extends Vue {
 		this.showScreen('loading');
 		try {
 			await GitHubClient.fetchCurrentUser();
+			if (!GitHubClient.hasOAuthScope('repo')) {
+				clearToken();
+				GitHubClient.clear();
+				this.loginDisabled = false;
+				this.showError('GitHub needs the repo scope to list private repositories and write pull request changes, comments, and PR state. Please sign in again and approve the updated permissions.');
+				return;
+			}
 			this.user            = GitHubClient.getUser();
 			this.accessibleRepos = await GitHubClient.fetchAccessibleRepos();
 			await this.fetchPRs(this.currentRepo || undefined);
@@ -517,3 +562,34 @@ export default class App extends Vue {
 
 }
 </script>
+
+<style>
+.pr-detail-slide-over {
+	z-index: 1000;
+	background: var(--bg-primary);
+	box-shadow: -24px 0 48px rgba(0, 0, 0, 0.28);
+}
+
+.pr-detail-slide-enter-active,
+.pr-detail-slide-leave-active {
+	transition: transform 220ms cubic-bezier(0.4, 0, 0.2, 1);
+	will-change: transform;
+}
+
+.pr-detail-slide-enter-from,
+.pr-detail-slide-leave-to {
+	transform: translateX(100%);
+}
+
+.pr-detail-slide-enter-to,
+.pr-detail-slide-leave-from {
+	transform: translateX(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.pr-detail-slide-enter-active,
+	.pr-detail-slide-leave-active {
+		transition-duration: 1ms;
+	}
+}
+</style>
